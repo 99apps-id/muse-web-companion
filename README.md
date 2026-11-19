@@ -31,6 +31,7 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [For AI Agents (Automated Setup)](#for-ai-agents-automated-setup)
 - [Features](#features)
 - [Use Cases](#use-cases)
 - [Screenshots](#screenshots)
@@ -55,15 +56,42 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 
 | Step | What you get | Difficulty | Time |
 | --- | --- | --- | --- |
-| [Part A — Install the extension](#part-a--install-the-extension) | Chat panel + Context/Tunnel modes | 🟡 **Moderate** — a few terminal commands to package the `.vsix` | ~10 min |
-| [Part B — Set up the relay](#part-b--set-up-the-relay-optional-for-in-panel-answers) *(optional)* | Muse answers inside the panel | 🔴 **Advanced, one-time** — admin PowerShell, Tailscale, SSH keys; the hook itself is created by Muse on request | ~20–30 min |
+| [Part A — Install the extension](#part-a--install-the-extension) | Chat panel + Context/Tunnel modes | 🟢 **Easy** — download the prebuilt `.vsix` from Releases (or package locally) and install | ~2 min |
+| [Part B — Set up the relay](#part-b--set-up-the-relay-optional-for-in-panel-answers) *(optional)* | Muse answers inside the panel | 🔴 **Advanced, one-time** — any SSH route from Muse to this machine (reverse SSH tunnel `ssh -R`, jump host, Tailscale/WireGuard, or direct IP) + SSH key; the hook itself is created by Muse on request | ~20–30 min |
 | [Part C — MCP bridge](#part-c--mcp-bridge-for-other-agents-optional) *(optional)* | Other coding agents can ask your Muse | 🟡 **Moderate** — copy the separate project, paste a JSON snippet | ~10 min |
 
 The shortest path:
 
 1. Do **Part A**, reload the VS Code window, and open the panel: click the **Muse** icon in the Activity Bar, or press `Ctrl+Shift+P` and run `Muse: Open the Muse Chat Panel`.
 2. Send with **Context** or **Tunnel** mode — both work immediately, no relay needed.
-3. Want Muse's answers inside the panel? Do **Part B** once. *Not a terminal person?* Open [muse.ai](https://muse.ai) and ask Muse to set the relay up with you — Muse creates the polling hook and its worker instructions itself; your part is only installing Tailscale and pasting a handful of PowerShell commands as administrator, one at a time.
+3. Want Muse's answers inside the panel? Do **Part B** once. *Not a terminal person?* Open [muse.ai](https://muse.ai) and ask Muse to set the relay up with you — Muse creates the polling hook and its worker instructions itself; your part is only enabling an SSH route to your machine (Tailscale is optional — any SSH tunnel, reverse SSH `ssh -R`, VPN, or jump host works).
+
+## For AI Agents (Automated Setup)
+
+If an operator gives you (an AI coding agent such as **Claude Code, OpenAI Codex CLI, Google Antigravity, VS Code Copilot, Cursor, Windsurf, or Gemini CLI**) this repository URL and asks you to install it for them, follow this exact checklist:
+
+1. **Dependencies & Prerequisites (Zero npm packages required):**
+   - To install from the prebuilt release `.vsix`: **no Node.js or npm dependencies are needed** — just download `muse-web-companion-0.1.2.vsix` from GitHub Releases and install it via the IDE CLI.
+   - Only if packaging from source: **Node.js `>= 18`** (`npx -y @vscode/vsce package`). Do **not** run `npm install` (`extension.js` has zero runtime dependencies).
+   - **Tailscale is NOT required:** Context mode works with zero network/SSH setup. Relay & Tunnel modes only need *any* working SSH route from Muse's environment to this machine (e.g. reverse SSH tunnel `ssh -R` via a VPS/jump host, Cloudflare Tunnel, WireGuard, ZeroTier, Tailscale, or direct IP). Do not install Tailscale unless the operator specifically asks for it.
+2. **Download (or package) the `.vsix` and install into the operator's IDE(s):**
+   - Download the latest prebuilt `.vsix` from `https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.2.vsix` (or clone the repo and run `npx -y @vscode/vsce package`).
+   - Install into whichever VS Code-compatible IDE(s) exist on the operator's machine:
+     - **VS Code:** `code --install-extension muse-web-companion-0.1.2.vsix --force`
+     - **Google Antigravity IDE:** `antigravity-ide --install-extension muse-web-companion-0.1.2.vsix --force` (on Windows: `"$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension muse-web-companion-0.1.2.vsix --force`)
+     - **Cursor / Windsurf:** `cursor --install-extension muse-web-companion-0.1.2.vsix --force` / `windsurf --install-extension muse-web-companion-0.1.2.vsix --force`
+3. **Create the local relay directories (`~/muse-relay/{inbox,outbox,archive}`):**
+   - **Windows (PowerShell):**
+     ```powershell
+     New-Item -ItemType Directory -Force "$env:USERPROFILE\muse-relay\inbox", "$env:USERPROFILE\muse-relay\outbox", "$env:USERPROFILE\muse-relay\archive"
+     ```
+   - **macOS / Linux (Bash):**
+     ```bash
+     mkdir -p "$HOME/muse-relay/inbox" "$HOME/muse-relay/outbox" "$HOME/muse-relay/archive"
+     ```
+4. **Report clearly to the operator:**
+   - Tell the operator to run **`Developer: Reload Window`** in their IDE and click the **Muse** icon in the Activity Bar (or Status Bar) to open the **Muse Chat Panel**.
+   - Inform them that **Context** mode works immediately without any SSH or relay setup, and if they want in-panel **Relay** answers (and haven't set up the Muse-side `muse-relay-inbox` hook yet), guide them through [Part B](#part-b--set-up-the-relay-optional-for-in-panel-answers).
 
 ## Features
 
@@ -131,6 +159,21 @@ Throughout this document, replace the placeholders with your own values:
 
 ### Part A — Install the extension
 
+**Fastest way (prebuilt `.vsix` from GitHub Releases — no build needed):**
+
+1. Download [`muse-web-companion-0.1.2.vsix`](https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.2.vsix) from the latest GitHub Release.
+2. Install it into VS Code or Antigravity IDE:
+
+   ```bash
+   code --install-extension muse-web-companion-0.1.2.vsix
+   # or for Antigravity IDE:
+   antigravity-ide --install-extension muse-web-companion-0.1.2.vsix
+   ```
+
+   Or in the IDE: Extensions view → `...` menu → **Install from VSIX...** → pick the downloaded file.
+
+**Or package from source:**
+
 1. Clone this repository and enter it:
 
    ```bash
@@ -144,22 +187,13 @@ Throughout this document, replace the placeholders with your own values:
    node --check extension.js
    ```
 
-3. Package the extension as a `.vsix`:
+3. Package the extension as a `.vsix` and install it:
 
    ```bash
    npx -y @vscode/vsce package
    # produces muse-web-companion-0.1.2.vsix
-   ```
-
-4. Install it into VS Code (or Antigravity IDE):
-
-   ```bash
    code --install-extension muse-web-companion-0.1.2.vsix
-   # or for Antigravity IDE:
-   antigravity-ide --install-extension muse-web-companion-0.1.2.vsix
    ```
-
-   Or in VS Code: Extensions view → `...` menu → **Install from VSIX...** → pick the file.
 
 5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel. You can also open the panel from the keyboard: press `Ctrl+Shift+P`, type `Muse: Open the Muse Chat Panel`, and press Enter.
 
