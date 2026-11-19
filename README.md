@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/badge/release-v0.1.0-blue)](https://github.com/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC)](https://code.visualstudio.com/)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](#)
 
 A VS Code companion extension for your **personal Muse at [muse.ai](https://muse.ai)**. It adds a chat-style sidebar panel and one-click context sharing (active file, selection, workspace tree, git diff, diagnostics) — plus an optional **asynchronous file relay** that lets Muse actually answer inside the panel, and an optional **MCP bridge** (a separate companion project — see Part C) so other coding agents can ask your Muse questions.
@@ -415,6 +415,6 @@ Applied (`applied.json`, written by Muse's worker after applying a settings chan
 
 ## License
 
-MIT — see the `LICENSE` file in this repository.
+Apache License 2.0 — see the `LICENSE` file in this repository. Attribution notices live in the `NOTICE` file; redistributions must preserve them (Apache License, Section 4(d)).
 
 Unofficial project. Muse and muse.ai are products of Meta; this extension is not affiliated with or endorsed by Meta.

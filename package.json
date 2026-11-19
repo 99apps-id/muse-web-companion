@@ -174,7 +174,7 @@
   "engines": {
     "vscode": "^1.80.0"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "main": "./extension.js",
   "name": "muse-web-companion",
   "publisher": "matt-local",
