@@ -33,13 +33,13 @@ function openMuse() {
   return vscode.env.openExternal(vscode.Uri.parse(museUrl()));
 }
 
-function truncate(text, label) {
+function truncate(text, label, isId) {
   const max = Number(cfg().get('maxChars')) || 100000;
   if (text.length <= max) return text;
-  return (
-    text.slice(0, max) +
-    `\n\n[... ${label} dipotong oleh Muse Companion: ${text.length - max} karakter sisanya tidak disalin. Naikkan museCompanion.maxChars di Settings bila perlu.]`
-  );
+  const note = isId
+    ? `\n\n[... ${label} dipotong oleh Muse Companion: ${text.length - max} karakter sisanya tidak disalin. Naikkan museCompanion.maxChars di Settings bila perlu.]`
+    : `\n\n[... ${label} truncated by Muse Companion: ${text.length - max} remaining characters omitted. Increase museCompanion.maxChars in Settings if needed.]`;
+  return text.slice(0, max) + note;
 }
 
 async function copyAndOpen(text, message) {
@@ -68,8 +68,13 @@ function activeDoc() {
   return ed ? ed.document : undefined;
 }
 
-// --- Async relay via ~/muse-relay (inbox/outbox on this machine) ---
+// --- Async relay via ~/muse-relay (or museCompanion.relayDir / MUSE_RELAY_DIR) ---
 function relayRoot() {
+  const configured = String(cfg().get('relayDir') || '').trim();
+  if (configured) return configured;
+  if (process.env.MUSE_RELAY_DIR && process.env.MUSE_RELAY_DIR.trim()) {
+    return process.env.MUSE_RELAY_DIR.trim();
+  }
   return path.join(os.homedir(), 'muse-relay');
 }
 
@@ -79,6 +84,20 @@ function relayDirs() {
     try { fs.mkdirSync(path.join(root, d), { recursive: true }); } catch {}
   }
   return root;
+}
+
+function atomicWriteJson(dir, filename, obj) {
+  fs.mkdirSync(dir, { recursive: true });
+  const payload = JSON.stringify(obj, null, 2);
+  const finalPath = path.join(dir, filename);
+  const tmpPath = path.join(dir, `.tmp-${process.pid}-${Date.now()}-${filename}`);
+  try {
+    fs.writeFileSync(tmpPath, payload, 'utf8');
+    fs.renameSync(tmpPath, finalPath);
+  } catch (e) {
+    try { fs.unlinkSync(tmpPath); } catch {}
+    fs.writeFileSync(finalPath, payload, 'utf8');
+  }
 }
 
 function newRequestId() {
@@ -140,9 +159,9 @@ function readRelayControl() {
 }
 
 function writeRelayControl(patch) {
-  relayDirs();
+  const root = relayDirs();
   const next = Object.assign({}, readRelayControl(), patch, { updatedAt: new Date().toISOString() });
-  fs.writeFileSync(relayControlPath(), JSON.stringify(next, null, 2), 'utf8');
+  atomicWriteJson(root, 'control.json', next);
   return next;
 }
 
@@ -171,6 +190,7 @@ function pruneArchive(retentionDays) {
     const dir = path.join(relayDirs(), 'archive');
     const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
     for (const f of fs.readdirSync(dir)) {
+      if (f.startsWith('.tmp-')) continue;
       try {
         const p = path.join(dir, f);
         if (fs.statSync(p).mtimeMs < cutoff) fs.unlinkSync(p);
@@ -187,9 +207,25 @@ function register(context) {
   let settings = sanitizeSettings(context.globalState.get('museRelaySettings'));
   // Bilingual host messages (panel notifications): English by default.
   const L = (en, id) => (settings.uiLanguage === 'id' ? id : en);
+
+  // Status bar button — opens the Muse Chat Panel in the IDE (and reflects pause state)
+  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 90);
+  const updateStatusBar = () => {
+    const paused = readRelayPaused();
+    status.text = paused ? '$(debug-pause) Muse (Paused)' : '$(sparkle) Muse';
+    status.tooltip = paused
+      ? L('Muse Chat Panel (Relay paused — click to open)', 'Panel Chat Muse (Relay di-pause — klik untuk membuka)')
+      : L('Open Muse Chat Panel (Ctrl+Alt+M for muse.ai web)', 'Buka Panel Chat Muse (Ctrl+Alt+M untuk web muse.ai)');
+  };
+  updateStatusBar();
+  status.command = 'museCompanion.openChat';
+  status.show();
+  sub(status);
+
   const saveSettings = (patch) => {
     settings = sanitizeSettings(Object.assign({}, settings, patch));
     context.globalState.update('museRelaySettings', settings);
+    updateStatusBar();
     try {
       writeRelayControl({ desiredPollSecs: settings.hookPollSecs, maxPerWake: settings.maxPerWake });
     } catch {}
@@ -199,14 +235,6 @@ function register(context) {
   // start, and prune the archive per the retention setting.
   try { writeRelayControl({ desiredPollSecs: settings.hookPollSecs, maxPerWake: settings.maxPerWake }); } catch {}
   pruneArchive(settings.archiveRetentionDays);
-
-  // Status bar button
-  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 90);
-  status.text = '$(sparkle) Muse';
-  status.tooltip = 'Buka Muse web (muse.ai)';
-  status.command = 'museCompanion.openMuse';
-  status.show();
-  sub(status);
 
   sub(vscode.commands.registerCommand('museCompanion.openMuse', async () => {
     await openMuse();
@@ -220,14 +248,14 @@ function register(context) {
     } else {
       const doc = activeDoc();
       if (!doc) {
-        vscode.window.showWarningMessage('Muse Companion: tidak ada file aktif.');
+        vscode.window.showWarningMessage(L('Muse Companion: no active file.', 'Muse Companion: tidak ada file aktif.'));
         return;
       }
       filePath = doc.fileName;
     }
     const question = await vscode.window.showInputBox({
-      prompt: 'Mau Muse apakan dengan file ini? (kosongkan untuk: baca & jelaskan)',
-      placeHolder: 'Contoh: audit file ini, cari bug di fungsi login'
+      prompt: L('What should Muse do with this file? (leave empty for: read & explain)', 'Mau Muse apakan dengan file ini? (kosongkan untuk: baca & jelaskan)'),
+      placeHolder: L('Example: audit this file, find bugs in the login function', 'Contoh: audit file ini, cari bug di fungsi login')
     });
     if (question === undefined) return; // cancelled
     const ask = question.trim() || 'baca file ini dan jelaskan isinya, lalu tunjukkan masalah atau perbaikan yang kamu temukan';
@@ -235,18 +263,18 @@ function register(context) {
       `Hai Muse, ${ask}.\n` +
       `File-nya ada di laptop saya, baca langsung lewat tunnel dari path ini:\n` +
       `${filePath}`;
-    await copyAndOpen(text, 'Muse Companion: permintaan tunnel tersalin. Tempel (Ctrl+V) di chat Muse, lalu Enter.');
+    await copyAndOpen(text, L('Muse Companion: tunnel request copied. Paste (Ctrl+V) in the Muse chat and press Enter.', 'Muse Companion: permintaan tunnel tersalin. Tempel (Ctrl+V) di chat Muse, lalu Enter.'));
   }));
 
   sub(vscode.commands.registerCommand('museCompanion.askTunnelReadWorkspace', async () => {
     const root = workspaceRoot();
     if (!root) {
-      vscode.window.showWarningMessage('Muse Companion: tidak ada workspace terbuka.');
+      vscode.window.showWarningMessage(L('Muse Companion: no open workspace.', 'Muse Companion: tidak ada workspace terbuka.'));
       return;
     }
     const question = await vscode.window.showInputBox({
-      prompt: 'Mau Muse apakan dengan workspace ini? (kosongkan untuk: jelajahi & rangkum)',
-      placeHolder: 'Contoh: audit mendalam folder crates/odon-channel, terutama telegram'
+      prompt: L('What should Muse do with this workspace? (leave empty for: explore & summarize)', 'Mau Muse apakan dengan workspace ini? (kosongkan untuk: jelajahi & rangkum)'),
+      placeHolder: L('Example: deep audit of the project structure', 'Contoh: audit mendalam folder crates/odon-channel, terutama telegram')
     });
     if (question === undefined) return;
     const ask = question.trim() || 'jelajahi workspace ini dan rangkum struktur serta keadaan proyeknya';
@@ -254,47 +282,47 @@ function register(context) {
       `Hai Muse, ${ask}.\n` +
       `Workspace-nya ada di laptop saya, kerjakan langsung lewat tunnel dari folder ini:\n` +
       `${root}`;
-    await copyAndOpen(text, 'Muse Companion: permintaan tunnel workspace tersalin. Tempel di chat Muse, lalu Enter.');
+    await copyAndOpen(text, L('Muse Companion: workspace tunnel request copied. Paste in the Muse chat and press Enter.', 'Muse Companion: permintaan tunnel workspace tersalin. Tempel di chat Muse, lalu Enter.'));
   }));
 
   // --- Clipboard context commands ---
   sub(vscode.commands.registerCommand('museCompanion.sendFile', async () => {
     const doc = activeDoc();
     if (!doc) {
-      vscode.window.showWarningMessage('Muse Companion: tidak ada file aktif.');
+      vscode.window.showWarningMessage(L('Muse Companion: no active file.', 'Muse Companion: tidak ada file aktif.'));
       return;
     }
-    const content = truncate(doc.getText(), 'isi file');
+    const content = truncate(doc.getText(), L('file content', 'isi file'), settings.uiLanguage === 'id');
     const text =
       `Hai Muse, ini file dari VS Code saya:\n\n` +
       `Path: ${doc.fileName}\n\n` +
       fenced(doc, content);
-    await copyAndOpen(text, 'Muse Companion: file aktif tersalin. Tempel di chat Muse.');
+    await copyAndOpen(text, L('Muse Companion: active file copied. Paste in the Muse chat.', 'Muse Companion: file aktif tersalin. Tempel di chat Muse.'));
   }));
 
   sub(vscode.commands.registerCommand('museCompanion.askAboutFile', async () => {
     const doc = activeDoc();
     if (!doc) {
-      vscode.window.showWarningMessage('Muse Companion: tidak ada file aktif.');
+      vscode.window.showWarningMessage(L('Muse Companion: no active file.', 'Muse Companion: tidak ada file aktif.'));
       return;
     }
     const question = await vscode.window.showInputBox({
-      prompt: 'Pertanyaanmu tentang file ini?',
-      placeHolder: 'Contoh: kenapa fungsi ini lambat?'
+      prompt: L('Your question about this file?', 'Pertanyaanmu tentang file ini?'),
+      placeHolder: L('Example: why is this function slow?', 'Contoh: kenapa fungsi ini lambat?')
     });
     if (!question) return;
-    const content = truncate(doc.getText(), 'isi file');
+    const content = truncate(doc.getText(), L('file content', 'isi file'), settings.uiLanguage === 'id');
     const text =
       `Hai Muse, ${question}\n\n` +
       `File: ${doc.fileName}\n\n` +
       fenced(doc, content);
-    await copyAndOpen(text, 'Muse Companion: pertanyaan + file tersalin. Tempel di chat Muse.');
+    await copyAndOpen(text, L('Muse Companion: question + file copied. Paste in the Muse chat.', 'Muse Companion: pertanyaan + file tersalin. Tempel di chat Muse.'));
   }));
 
   sub(vscode.commands.registerCommand('museCompanion.sendSelection', async () => {
     const ed = vscode.window.activeTextEditor;
     if (!ed || ed.selection.isEmpty) {
-      vscode.window.showWarningMessage('Muse Companion: belum ada teks yang diseleksi.');
+      vscode.window.showWarningMessage(L('Muse Companion: no text selected.', 'Muse Companion: belum ada teks yang diseleksi.'));
       return;
     }
     const sel = ed.document.getText(ed.selection);
@@ -303,8 +331,8 @@ function register(context) {
     const text =
       `Hai Muse, ini potongan kode dari VS Code saya:\n\n` +
       `File: ${ed.document.fileName} (baris ${start}-${end})\n\n` +
-      fenced(ed.document, truncate(sel, 'seleksi'));
-    await copyAndOpen(text, 'Muse Companion: seleksi tersalin. Tempel di chat Muse.');
+      fenced(ed.document, truncate(sel, L('selection', 'seleksi'), settings.uiLanguage === 'id'));
+    await copyAndOpen(text, L('Muse Companion: selection copied. Paste in the Muse chat.', 'Muse Companion: seleksi tersalin. Tempel di chat Muse.'));
   }));
 
   const buildTree = (root) => {
@@ -329,14 +357,14 @@ function register(context) {
   sub(vscode.commands.registerCommand('museCompanion.sendWorkspaceTree', async () => {
     const root = workspaceRoot();
     if (!root) {
-      vscode.window.showWarningMessage('Muse Companion: tidak ada workspace terbuka.');
+      vscode.window.showWarningMessage(L('Muse Companion: no open workspace.', 'Muse Companion: tidak ada workspace terbuka.'));
       return;
     }
     const text =
       `Hai Muse, ini struktur workspace VS Code saya:\n\n` +
       `Root: ${root}\n\n` +
-      '```\n' + truncate(buildTree(root), 'struktur workspace') + '\n```';
-    await copyAndOpen(text, 'Muse Companion: struktur workspace tersalin. Tempel di chat Muse.');
+      '```\n' + truncate(buildTree(root), L('workspace structure', 'struktur workspace'), settings.uiLanguage === 'id') + '\n```';
+    await copyAndOpen(text, L('Muse Companion: workspace structure copied. Paste in the Muse chat.', 'Muse Companion: struktur workspace tersalin. Tempel di chat Muse.'));
   }));
 
   const gitRun = (root, args) => new Promise((resolve) => {
@@ -348,7 +376,7 @@ function register(context) {
   sub(vscode.commands.registerCommand('museCompanion.sendGitDiff', async () => {
     const root = workspaceRoot();
     if (!root) {
-      vscode.window.showWarningMessage('Muse Companion: tidak ada workspace terbuka.');
+      vscode.window.showWarningMessage(L('Muse Companion: no open workspace.', 'Muse Companion: tidak ada workspace terbuka.'));
       return;
     }
     const run = (args) => new Promise((resolve) => {
@@ -364,8 +392,8 @@ function register(context) {
       `Root: ${root}\n\n` +
       'Status:\n```\n' + status + '```\n\n' +
       'Diff stat:\n```\n' + diff + '```\n\n' +
-      'Diff:\n```diff\n' + truncate(diffBody, 'git diff') + '\n```';
-    await copyAndOpen(text, 'Muse Companion: git status + diff tersalin. Tempel di chat Muse.');
+      'Diff:\n```diff\n' + truncate(diffBody, 'git diff', settings.uiLanguage === 'id') + '\n```';
+    await copyAndOpen(text, L('Muse Companion: git status + diff copied. Paste in the Muse chat.', 'Muse Companion: git status + diff tersalin. Tempel di chat Muse.'));
   }));
 
   sub(vscode.commands.registerCommand('museCompanion.sendDiagnostics', async () => {
@@ -378,49 +406,99 @@ function register(context) {
       }
     }
     if (!lines.length) {
-      vscode.window.showInformationMessage('Muse Companion: tidak ada Problems/diagnostics saat ini.');
+      vscode.window.showInformationMessage(L('Muse Companion: no Problems/diagnostics right now.', 'Muse Companion: tidak ada Problems/diagnostics saat ini.'));
       return;
     }
     const text =
       `Hai Muse, ini Problems/diagnostics dari VS Code saya — bantu jelaskan dan perbaiki:\n\n` +
-      '```\n' + truncate(lines.join('\n'), 'diagnostics') + '\n```';
-    await copyAndOpen(text, `Muse Companion: ${lines.length} diagnostics tersalin. Tempel di chat Muse.`);
+      '```\n' + truncate(lines.join('\n'), 'diagnostics', settings.uiLanguage === 'id') + '\n```';
+    await copyAndOpen(text, L(`Muse Companion: ${lines.length} diagnostics copied. Paste in the Muse chat.`, `Muse Companion: ${lines.length} diagnostics tersalin. Tempel di chat Muse.`));
   }));
 
   // --- Sidebar chat panel (WebviewView) ---
+  let activeWebviewView = null;
+  let pendingOpenSettings = false;
+
   const chatProvider = {
     resolveWebviewView(webviewView) {
+      activeWebviewView = webviewView;
       webviewView.webview.options = { enableScripts: true };
       webviewView.webview.html = chatHtml();
 
       let pollTimer = null;
+      let outboxWatcher = null;
+      let scanDebounce = null;
+
       const scanOutbox = () => {
         let arrived = 0;
         try {
           const outDir = path.join(relayDirs(), 'outbox');
           for (const f of fs.readdirSync(outDir)) {
             if (!/^res-.*\.json$/.test(f)) continue;
+            // Skip MCP bridge answers (res-mcp-*.json) so the panel never steals
+            // or archives tool responses meant for coding agents (muse-relay-mcp).
+            if (/^res-mcp-/.test(f)) continue;
             try {
-              const data = JSON.parse(fs.readFileSync(path.join(outDir, f), 'utf8'));
-              webviewView.webview.postMessage({ type: 'relayAnswer', id: data.id, answer: data.answer || L('(empty answer from Muse)', '(jawaban kosong dari Muse)') });
-              try { fs.renameSync(path.join(outDir, f), path.join(relayRoot(), 'archive', f)); } catch {}
+              const filePath = path.join(outDir, f);
+              const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+              if (!data || typeof data.answer !== 'string') {
+                // File may still be streaming over SSH; wait for next scan if recent
+                const ageMs = Date.now() - fs.statSync(filePath).mtimeMs;
+                if (ageMs < 10000) continue;
+              }
+              webviewView.webview.postMessage({
+                type: 'relayAnswer',
+                id: data && data.id,
+                answer: (data && data.answer) || L('(empty answer from Muse)', '(jawaban kosong dari Muse)')
+              });
+              try { fs.renameSync(filePath, path.join(relayRoot(), 'archive', f)); } catch {}
               arrived++;
-            } catch {}
+            } catch {
+              // Partial JSON write in progress over SSH; leave in outbox for the next scan
+            }
           }
         } catch {}
         if (arrived > 0 && settings.notifyOnAnswer) {
           vscode.window.showInformationMessage(L('Muse Relay: a new answer has arrived in the Muse panel.', 'Muse Relay: jawaban baru diterima di panel Muse.'));
         }
       };
+
+      const startOutboxWatcher = () => {
+        if (outboxWatcher) {
+          try { outboxWatcher.close(); } catch {}
+          outboxWatcher = null;
+        }
+        try {
+          const outDir = path.join(relayDirs(), 'outbox');
+          outboxWatcher = fs.watch(outDir, (eventType, filename) => {
+            if (filename && (!/^res-.*\.json$/.test(filename) || /^res-mcp-/.test(filename))) return;
+            if (scanDebounce) clearTimeout(scanDebounce);
+            scanDebounce = setTimeout(scanOutbox, 50);
+          });
+          outboxWatcher.on('error', () => {});
+        } catch {}
+      };
+
       const restartPollTimer = () => {
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = setInterval(scanOutbox, settings.outboxPollSecs * 1000);
       };
       scanOutbox();
+      startOutboxWatcher();
       restartPollTimer();
-      webviewView.onDidDispose(() => { if (pollTimer) clearInterval(pollTimer); });
+
+      webviewView.onDidDispose(() => {
+        if (activeWebviewView === webviewView) activeWebviewView = null;
+        if (pollTimer) clearInterval(pollTimer);
+        if (scanDebounce) clearTimeout(scanDebounce);
+        if (outboxWatcher) {
+          try { outboxWatcher.close(); } catch {}
+          outboxWatcher = null;
+        }
+      });
 
       const postRelayState = () => {
+        updateStatusBar();
         webviewView.webview.postMessage({ type: 'relayState', paused: readRelayPaused() });
       };
       const postSettings = () => {
@@ -434,12 +512,22 @@ function register(context) {
           await openMuse();
           return;
         }
+        if (msg.type === 'copyText') {
+          if (typeof msg.text === 'string') {
+            await vscode.env.clipboard.writeText(msg.text);
+          }
+          return;
+        }
         if (msg.type === 'getRelayState') {
           postRelayState();
           return;
         }
         if (msg.type === 'getSettings') {
           postSettings();
+          if (pendingOpenSettings) {
+            pendingOpenSettings = false;
+            webviewView.webview.postMessage({ type: 'openSettingsPanel' });
+          }
           return;
         }
         if (msg.type === 'updateSettings') {
@@ -470,13 +558,21 @@ function register(context) {
         }
         if (msg.type !== 'send') return;
         const prompt = (msg.text || '').trim();
+        const attach = msg.attach || {};
+        const hasAnyAttachment = !!(attach.file || attach.selection || attach.tree || attach.diff);
+        if (!prompt && (msg.mode === 'relay' || !hasAnyAttachment)) {
+          vscode.window.showWarningMessage(
+            L('Muse Companion: please type a message for Muse before sending.', 'Muse Companion: tulis pesan untuk Muse terlebih dahulu sebelum mengirim.')
+          );
+          return;
+        }
         if (msg.mode === 'relay') {
           if (readRelayPaused()) {
             postRelayState();
             webviewView.webview.postMessage({ type: 'heldByHost', text: prompt });
             return;
           }
-          const attach = msg.attach || {};
+          const isId = settings.uiLanguage === 'id';
           const req = {
             id: newRequestId(),
             createdAt: new Date().toISOString(),
@@ -487,29 +583,35 @@ function register(context) {
             contextFile: null,
             selection: null,
             tree: null,
-            diff: null
+            diff: null,
+            source: 'panel'
           };
           const doc = activeDoc();
           if (doc) req.activeFile = doc.fileName;
           if (attach.file && doc) {
-            req.contextFile = { path: doc.fileName, content: truncate(doc.getText(), 'isi file') };
+            req.contextFile = { path: doc.fileName, content: truncate(doc.getText(), L('file content', 'isi file'), isId) };
           }
           if (attach.selection) {
             const ed = vscode.window.activeTextEditor;
             if (ed && !ed.selection.isEmpty) {
-              req.selection = { path: ed.document.fileName, startLine: ed.selection.start.line + 1, endLine: ed.selection.end.line + 1, content: truncate(ed.document.getText(ed.selection), 'seleksi') };
+              req.selection = {
+                path: ed.document.fileName,
+                startLine: ed.selection.start.line + 1,
+                endLine: ed.selection.end.line + 1,
+                content: truncate(ed.document.getText(ed.selection), L('selection', 'seleksi'), isId)
+              };
             }
           }
           if (attach.tree && req.workspaceRoot) {
-            req.tree = truncate(buildTree(req.workspaceRoot), 'struktur workspace');
+            req.tree = truncate(buildTree(req.workspaceRoot), L('workspace structure', 'struktur workspace'), isId);
           }
           if (attach.diff && req.workspaceRoot) {
             const diffBody = await gitRun(req.workspaceRoot, ['diff', 'HEAD']);
-            req.diff = diffBody === null ? null : truncate(diffBody, 'git diff');
+            req.diff = diffBody === null ? null : truncate(diffBody, 'git diff', isId);
           }
           try {
             const inbox = path.join(relayDirs(), 'inbox');
-            fs.writeFileSync(path.join(inbox, `req-${req.id}.json`), JSON.stringify(req, null, 2), 'utf8');
+            atomicWriteJson(inbox, `req-${req.id}.json`, req);
             webviewView.webview.postMessage({ type: 'queued', text: prompt, id: req.id });
             vscode.window.showInformationMessage(L('Muse Relay: message queued in the inbox. Muse checks every ' + settings.hookPollSecs + ' seconds; answer time depends on the task.', 'Muse Relay: pesan masuk inbox. Muse mengambilnya tiap ' + settings.hookPollSecs + ' detik; waktu jawaban tergantung kerumitan tugas.'));
           } catch (e) {
@@ -518,6 +620,7 @@ function register(context) {
           return;
         }
         const parts = [];
+        const isId = settings.uiLanguage === 'id';
         if (msg.mode === 'tunnel') {
           const root = workspaceRoot();
           const doc = activeDoc();
@@ -527,16 +630,15 @@ function register(context) {
           if (root) parts.push(`Workspace: ${root}`);
         } else {
           parts.push(`Hai Muse, ${prompt || 'tolong lihat konteks ini'}.`);
-          const attach = msg.attach || {};
           if (attach.file) {
             const doc = activeDoc();
-            if (doc) parts.push(`\nFile aktif: ${doc.fileName}\n` + fenced(doc, truncate(doc.getText(), 'isi file')));
+            if (doc) parts.push(`\nFile aktif: ${doc.fileName}\n` + fenced(doc, truncate(doc.getText(), L('file content', 'isi file'), isId)));
             else parts.push('\n(Tidak ada file aktif untuk dilampirkan.)');
           }
           if (attach.selection) {
             const ed = vscode.window.activeTextEditor;
             if (ed && !ed.selection.isEmpty) {
-              parts.push(`\nSeleksi dari ${ed.document.fileName} baris ${ed.selection.start.line + 1}-${ed.selection.end.line + 1}:\n` + fenced(ed.document, truncate(ed.document.getText(ed.selection), 'seleksi')));
+              parts.push(`\nSeleksi dari ${ed.document.fileName} baris ${ed.selection.start.line + 1}-${ed.selection.end.line + 1}:\n` + fenced(ed.document, truncate(ed.document.getText(ed.selection), L('selection', 'seleksi'), isId)));
             } else {
               parts.push('\n(Tidak ada seleksi teks saat ini.)');
             }
@@ -544,14 +646,14 @@ function register(context) {
           if (attach.tree) {
             const root = workspaceRoot();
             if (root) {
-              parts.push(`\nStruktur workspace (${root}):\n` + '```\n' + truncate(buildTree(root), 'struktur workspace') + '\n```');
+              parts.push(`\nStruktur workspace (${root}):\n` + '```\n' + truncate(buildTree(root), L('workspace structure', 'struktur workspace'), isId) + '\n```');
             }
           }
           if (attach.diff) {
             const root = workspaceRoot();
             if (root) {
               const diffBody = await gitRun(root, ['diff', 'HEAD']);
-              if (diffBody) parts.push('\nGit diff:\n```diff\n' + truncate(diffBody, 'git diff') + '\n```');
+              if (diffBody) parts.push('\nGit diff:\n```diff\n' + truncate(diffBody, 'git diff', isId) + '\n```');
             }
           }
         }
@@ -570,7 +672,12 @@ function register(context) {
   }));
 
   sub(vscode.commands.registerCommand('museCompanion.openSettings', async () => {
+    pendingOpenSettings = true;
     await vscode.commands.executeCommand('museCompanion.chatView.focus');
+    if (activeWebviewView) {
+      pendingOpenSettings = false;
+      activeWebviewView.webview.postMessage({ type: 'openSettingsPanel' });
+    }
   }));
 }
 
@@ -604,11 +711,18 @@ function chatHtml() {
   .applied { font-size: 11px; color: var(--vscode-descriptionForeground); padding: 2px 0 0; }
   .saved { font-size: 11px; color: var(--vscode-descriptionForeground); text-align: right; min-height: 14px; }
   #history { flex: 1; overflow-y: auto; padding: 10px 12px; }
-  .msg { margin-bottom: 8px; padding: 7px 9px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.45; }
+  .msg { margin-bottom: 8px; padding: 7px 9px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.45; position: relative; }
   .user { background: var(--vscode-input-background); border: 1px solid var(--vscode-panel-border); }
   .muse { background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-left: 3px solid var(--vscode-focusBorder); }
-  .who { font-size: 11px; font-weight: 600; color: var(--vscode-descriptionForeground); margin-bottom: 3px; }
+  .msg-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+  .who { font-size: 11px; font-weight: 600; color: var(--vscode-descriptionForeground); }
+  .copybtn { background: transparent; border: 1px solid var(--vscode-panel-border); color: var(--vscode-descriptionForeground); border-radius: 3px; font-size: 10px; padding: 1px 6px; cursor: pointer; font-family: inherit; }
+  .copybtn:hover { color: var(--vscode-foreground); background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,0.15)); }
   .sys { font-size: 11px; color: var(--vscode-descriptionForeground); padding: 2px 0; margin-bottom: 6px; }
+  #pendingBanner { display: none; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 12px; font-size: 11px; color: var(--vscode-descriptionForeground); background: var(--vscode-editor-background); border-top: 1px solid var(--vscode-panel-border); }
+  #pendingBanner.active { display: flex; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--vscode-progressBar-background, #0078d4); display: inline-block; animation: musePulse 1.4s infinite ease-in-out; }
+  @keyframes musePulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
   .composer { border-top: 1px solid var(--vscode-panel-border); padding: 10px 12px; background: var(--vscode-sideBar-background); }
   .modes { display: flex; border: 1px solid var(--vscode-panel-border); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
   .modes label { flex: 1; text-align: center; font-size: 11px; padding: 5px 2px; cursor: pointer; color: var(--vscode-descriptionForeground); border-right: 1px solid var(--vscode-panel-border); }
@@ -726,6 +840,11 @@ function chatHtml() {
 
   <div id="history"></div>
 
+  <div id="pendingBanner">
+    <span style="display:inline-flex;align-items:center;gap:6px;"><span class="pulse"></span><span id="pendingText"></span></span>
+    <span id="pendingElapsed"></span>
+  </div>
+
   <div class="composer">
     <div class="modes" id="modes">
       <label data-mode="relay" class="active"><input type="radio" name="mode" value="relay" checked><span data-i18n="modeRelay">Relay</span></label>
@@ -771,9 +890,11 @@ function chatHtml() {
       day7: '7 days', day30: '30 days', day90: '90 days', forever: 'Forever',
       modeRelay: 'Relay', modeContext: 'Context', modeTunnel: 'Tunnel',
       inputPlaceholder: 'Message Muse… (Ctrl+Enter to send)', send: 'Send to Muse', clear: 'Clear',
-      you: 'You', emptyHistory: 'No messages yet. Write a message below, choose its context attachments, then Send to Muse.',
+      you: 'You', copy: 'Copy', copied: 'Copied!',
+      waitingMuse: 'Waiting for Muse ({n} in queue)…',
+      emptyHistory: 'No messages yet. Write a message below, choose its context attachments, then Send to Muse.',
       copiedNote: 'Copied to the clipboard and muse.ai opened — paste (Ctrl+V) there to send it.',
-      queuedNote: 'Queued in the relay inbox — Muse\u2019s answer will appear here.',
+      queuedNote: 'Queued in the relay inbox — Muse\u2019s answer will appear here as soon as it finishes.',
       noText: '(no text — context only)',
       heldPanel: 'Held (relay paused): "{text}" — it will be sent when the relay resumes.',
       heldHost: 'The relay is paused — the message "{text}" was not written to the inbox. Resume the relay and send it again.',
@@ -805,9 +926,11 @@ function chatHtml() {
       day7: '7 hari', day30: '30 hari', day90: '90 hari', forever: 'Selamanya',
       modeRelay: 'Relay', modeContext: 'Konteks', modeTunnel: 'Tunnel',
       inputPlaceholder: 'Tulis pesan untuk Muse… (Ctrl+Enter untuk kirim)', send: 'Kirim ke Muse', clear: 'Bersihkan',
-      you: 'Kamu', emptyHistory: 'Belum ada pesan. Tulis pesan di bawah, pilih lampiran konteksnya, lalu Kirim ke Muse.',
+      you: 'Kamu', copy: 'Salin', copied: 'Tersalin!',
+      waitingMuse: 'Menunggu jawaban Muse ({n} antrean)…',
+      emptyHistory: 'Belum ada pesan. Tulis pesan di bawah, pilih lampiran konteksnya, lalu Kirim ke Muse.',
       copiedNote: 'Tersalin ke clipboard dan muse.ai dibuka — tempel (Ctrl+V) di sana untuk mengirim.',
-      queuedNote: 'Masuk inbox relay — jawaban Muse akan muncul di sini.',
+      queuedNote: 'Masuk inbox relay — jawaban Muse akan langsung muncul di sini begitu selesai.',
       noText: '(tanpa teks — konteks saja)',
       heldPanel: 'Ditahan (relay di-pause): "{text}" — akan terkirim saat relay dilanjutkan.',
       heldHost: 'Relay sedang di-pause — pesan "{text}" tidak ditulis ke inbox. Lanjutkan relay lalu kirim lagi.',
@@ -841,6 +964,7 @@ function chatHtml() {
     document.documentElement.setAttribute('lang', lang);
     renderPause();
     renderApplied(window.__applied || null);
+    renderPendingBanner();
     render();
   }
 
@@ -855,6 +979,26 @@ function chatHtml() {
 
   function save() { vscodeApi.setState(state); }
 
+  function fmtElapsed(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000));
+    var m = Math.floor(s / 60);
+    var rem = s % 60;
+    return (m < 10 ? '0' + m : m) + ':' + (rem < 10 ? '0' + rem : rem);
+  }
+
+  function renderPendingBanner() {
+    var banner = document.getElementById('pendingBanner');
+    if (!banner) return;
+    if (!state.pending.length) {
+      banner.className = '';
+      return;
+    }
+    banner.className = 'active';
+    document.getElementById('pendingText').textContent = tpl('waitingMuse', { n: state.pending.length });
+    var oldest = state.pending[0].at || Date.now();
+    document.getElementById('pendingElapsed').textContent = fmtElapsed(Date.now() - oldest);
+  }
+
   function render() {
     historyEl.innerHTML = '';
     if (!state.history.length) {
@@ -862,6 +1006,7 @@ function chatHtml() {
       d0.className = 'sys';
       d0.textContent = t('emptyHistory');
       historyEl.appendChild(d0);
+      renderPendingBanner();
       return;
     }
     state.history.forEach(function (h) {
@@ -874,12 +1019,26 @@ function chatHtml() {
       }
       var d = document.createElement('div');
       d.className = 'msg ' + (h.role === 'muse' ? 'muse' : 'user');
+      var head = document.createElement('div');
+      head.className = 'msg-head';
       var who = document.createElement('div');
       who.className = 'who';
       who.textContent = h.role === 'muse' ? 'Muse' : t('you') + (h.mode ? ' · ' + h.mode : '');
+      head.appendChild(who);
+      if (h.role === 'muse' && h.text) {
+        var cbtn = document.createElement('button');
+        cbtn.className = 'copybtn';
+        cbtn.textContent = t('copy');
+        cbtn.addEventListener('click', function () {
+          vscodeApi.postMessage({ type: 'copyText', text: h.text });
+          cbtn.textContent = t('copied');
+          setTimeout(function () { cbtn.textContent = t('copy'); }, 1500);
+        });
+        head.appendChild(cbtn);
+      }
       var body = document.createElement('div');
       body.textContent = h.text;
-      d.appendChild(who);
+      d.appendChild(head);
       d.appendChild(body);
       historyEl.appendChild(d);
       if (h.role !== 'muse' && (h.mode === 'context' || h.mode === 'tunnel')) {
@@ -896,6 +1055,7 @@ function chatHtml() {
       }
     });
     historyEl.scrollTop = historyEl.scrollHeight;
+    renderPendingBanner();
   }
 
   function renderPause() {
@@ -1015,18 +1175,24 @@ function chatHtml() {
   }
 
   document.getElementById('send').addEventListener('click', function () {
-    var text = document.getElementById('input').value.trim();
+    var inputEl = document.getElementById('input');
+    var text = inputEl.value.trim();
     var mode = currentMode();
     var attach = currentAttach();
+    var hasAttach = !!(attach.file || attach.selection || attach.tree || attach.diff);
+    if (!text && (mode === 'relay' || !hasAttach)) {
+      inputEl.focus();
+      return;
+    }
     if (mode === 'relay' && relayPaused) {
       state.held.push({ text: text, attach: attach });
       state.history.push({ role: 'sys', text: tpl('heldPanel', { text: text || t('noText') }) });
       save(); render();
-      document.getElementById('input').value = '';
+      inputEl.value = '';
       return;
     }
     vscodeApi.postMessage({ type: 'send', text: text, mode: mode, attach: attach });
-    document.getElementById('input').value = '';
+    inputEl.value = '';
   });
 
   document.getElementById('pause').addEventListener('click', function () {
@@ -1036,9 +1202,15 @@ function chatHtml() {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') document.getElementById('send').click();
   });
   document.getElementById('open').addEventListener('click', function () { vscodeApi.postMessage({ type: 'openMuse' }); });
-  document.getElementById('clear').addEventListener('click', function () { state.history = []; state.pending = []; save(); render(); });
+  document.getElementById('clear').addEventListener('click', function () {
+    // Clear history while keeping active in-flight pending tickets intact
+    state.history = [];
+    save();
+    render();
+  });
 
   setInterval(function () {
+    renderPendingBanner();
     if (!settings || !settings.warnAfterMins || !state.pending.length) return;
     var now = Date.now();
     var changed = false;
@@ -1050,11 +1222,19 @@ function chatHtml() {
       }
     });
     if (changed) { save(); render(); }
-  }, 15000);
+  }, 1000);
 
   window.addEventListener('message', function (e) {
     var m = e.data;
     if (!m) return;
+    if (m.type === 'openSettingsPanel') {
+      var el = document.getElementById('settings');
+      if (el && el.className !== 'open') {
+        el.className = 'open';
+        vscodeApi.postMessage({ type: 'getSettings' });
+      }
+      return;
+    }
     if (m.type === 'sent') { state.history.push({ text: m.text || t('noText'), mode: m.mode }); save(); render(); }
     if (m.type === 'queued') {
       state.history.push({ text: m.text || t('noText'), mode: 'relay' });

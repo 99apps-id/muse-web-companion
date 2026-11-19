@@ -1,3 +1,5 @@
 .git/**
 *.md.bak
 **/*.vsix
+release-notes-*.md
+muse vscode extension.png

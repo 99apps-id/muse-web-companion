@@ -81,6 +81,11 @@
           "default": true,
           "description": "Open muse.ai in the browser after copying context to the clipboard.",
           "type": "boolean"
+        },
+        "museCompanion.relayDir": {
+          "default": "",
+          "description": "Optional custom path to the muse-relay folder (defaults to ~/muse-relay or the MUSE_RELAY_DIR environment variable).",
+          "type": "string"
         }
       },
       "title": "Muse Companion"
@@ -178,7 +183,7 @@
   "main": "./extension.js",
   "name": "muse-web-companion",
   "publisher": "matt-local",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/99apps-id/muse-web-companion"

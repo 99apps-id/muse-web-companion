@@ -5,7 +5,7 @@
 <h1 align="center">Muse Companion for Muse Web</h1>
 
 <p align="center">
-  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.1-blue" alt="Release"></a>
+  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.2-blue" alt="Release"></a>
   <a href="https://code.visualstudio.com/"><img src="https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC" alt="VS Code"></a>
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
   <a href="#"><img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="Dependencies"></a>
@@ -21,7 +21,7 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 <p align="center">
   <img src="images/chat-panel.png" alt="Muse Companion chat panel with a relay conversation" width="420">
 </p>
-<p align="center"><em>The chat panel in Relay mode — questions are queued to the relay inbox and Muse's answers appear in the history.</em></p>
+<p align="center"><em>The chat panel in Relay mode — questions are queued to the relay inbox, a live queue banner tracks elapsed wait time, and Muse's answers appear immediately with a one-click Copy button.</em></p>
 
 <p align="center">
   <img src="images/settings-panel.png" alt="Muse Companion settings section" width="420">
@@ -148,13 +148,15 @@ Throughout this document, replace the placeholders with your own values:
 
    ```bash
    npx -y @vscode/vsce package
-   # produces muse-web-companion-0.1.1.vsix
+   # produces muse-web-companion-0.1.2.vsix
    ```
 
-4. Install it into VS Code:
+4. Install it into VS Code (or Antigravity IDE):
 
    ```bash
-   code --install-extension muse-web-companion-0.1.1.vsix
+   code --install-extension muse-web-companion-0.1.2.vsix
+   # or for Antigravity IDE:
+   antigravity-ide --install-extension muse-web-companion-0.1.2.vsix
    ```
 
    Or in VS Code: Extensions view → `...` menu → **Install from VSIX...** → pick the file.
@@ -335,6 +337,7 @@ Most commands are also on the editor and Explorer context menus.
 | `museCompanion.museUrl` | `https://muse.ai` | Muse web URL opened by the extension |
 | `museCompanion.openAfterCopy` | `true` | Open muse.ai after copying context to the clipboard |
 | `museCompanion.maxChars` | `100000` | Character cap for copied file/diff content (excess is truncated with a note) |
+| `museCompanion.relayDir` | `""` | Optional custom path to the `muse-relay` folder (defaults to `~/muse-relay` or `MUSE_RELAY_DIR`) |
 
 ## Settings
 
@@ -447,6 +450,15 @@ Applied (`applied.json`, written by Muse's worker after applying a settings chan
 | VS Code does not show new MCP servers | Hosts load MCP config at startup | Restart the app or start a new session |
 
 ## Changelog
+
+### 0.1.2
+
+- **Instant answer delivery (`fs.watch`)** — the panel now watches `outbox/` with filesystem events in addition to interval polling, so Muse's answers appear in the panel the instant they are written
+- **Live waiting banner & elapsed timer** — shows an active `Waiting for Muse (N in queue)… MM:SS` indicator above the composer while relay requests are in flight
+- **One-click Copy button on Muse answers** — every Muse reply bubble now includes a `Copy` button with instant feedback
+- **Clean MCP bridge isolation** — the panel ignores `res-mcp-*.json` files in `outbox/` so it never steals or archives answers belonging to coding agents using `muse-relay-mcp`
+- **Atomic relay file writes** — `req-<id>.json` (with `"source": "panel"`) and `control.json` are written atomically via temp files so the SSH polling hook never reads a half-written JSON file
+- **UX & command improvements** — clicking the Status Bar item now opens the Muse Chat Panel directly (and displays pause state); `Muse: Relay Settings` automatically expands the Settings drawer; empty relay submissions are prevented; `Clear` preserves in-flight pending requests; all host prompts respect the English/Indonesian UI language setting; added `museCompanion.relayDir` / `MUSE_RELAY_DIR` support
 
 ### 0.1.1
 
