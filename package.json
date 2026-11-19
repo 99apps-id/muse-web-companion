@@ -178,5 +178,9 @@
   "main": "./extension.js",
   "name": "muse-web-companion",
   "publisher": "matt-local",
-  "version": "0.1.0"
+  "version": "0.1.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/99apps-id/muse-web-companion"
+  }
 }

@@ -299,6 +299,17 @@ Clone or copy the `muse-relay-mcp` project onto your machine (for example to `C:
 5. **Settings** (top-right of the panel) opens the settings section; every change is saved automatically — there is no Save button.
 6. **Clear** empties the local panel history (relay files are not affected).
 
+### Context attachments, explained
+
+Every message can carry extra context, so Muse knows exactly what you are working on without manual copy-paste. Tick the checkboxes under the message box (hover any of them in the panel to see the same explanation as a tooltip):
+
+| Attachment | What Muse receives | Good for |
+| --- | --- | --- |
+| **Active file** | The whole content of the file currently open in your editor | "Why does this file throw an error?" |
+| **Text selection** | Only the lines you have highlighted in the editor | Asking about a few specific lines, without sending the whole file |
+| **Workspace structure** | The folder and file names of your project - a map of the project, with no file contents | "Which file handles the login page?" |
+| **Git diff** | Your uncommitted changes: lines added, edited, or removed since your last commit | "Review my latest changes - anything risky?" |
+
 ### Commands (Command Palette, prefix `Muse:`)
 
 | Command | Shortcut | What it does |

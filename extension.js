@@ -715,10 +715,10 @@ function chatHtml() {
 
     <div class="group">
       <div class="group-title" data-i18n="attachGroup">Default attachments</div>
-      <div class="field"><label data-i18n="attFile">Active file</label><input type="checkbox" id="s-att-file"></div>
-      <div class="field"><label data-i18n="attSelection">Text selection</label><input type="checkbox" id="s-att-selection"></div>
-      <div class="field"><label data-i18n="attTree">Workspace structure</label><input type="checkbox" id="s-att-tree"></div>
-      <div class="field"><label data-i18n="attDiff">Git diff</label><input type="checkbox" id="s-att-diff"></div>
+      <div class="field"><label data-i18n="attFile" data-i18n-title="attFileTip">Active file</label><input type="checkbox" id="s-att-file"></div>
+      <div class="field"><label data-i18n="attSelection" data-i18n-title="attSelectionTip">Text selection</label><input type="checkbox" id="s-att-selection"></div>
+      <div class="field"><label data-i18n="attTree" data-i18n-title="attTreeTip">Workspace structure</label><input type="checkbox" id="s-att-tree"></div>
+      <div class="field"><label data-i18n="attDiff" data-i18n-title="attDiffTip">Git diff</label><input type="checkbox" id="s-att-diff"></div>
     </div>
 
     <div class="saved" id="savedLine"></div>
@@ -733,10 +733,10 @@ function chatHtml() {
       <label data-mode="tunnel"><input type="radio" name="mode" value="tunnel"><span data-i18n="modeTunnel">Tunnel</span></label>
     </div>
     <div class="chips" id="chips">
-      <label><input type="checkbox" id="a-file" checked> <span data-i18n="attFile">Active file</span></label>
-      <label><input type="checkbox" id="a-selection"> <span data-i18n="attSelection">Text selection</span></label>
-      <label><input type="checkbox" id="a-tree"> <span data-i18n="attTree">Workspace structure</span></label>
-      <label><input type="checkbox" id="a-diff"> <span data-i18n="attDiff">Git diff</span></label>
+      <label data-i18n-title="attFileTip"><input type="checkbox" id="a-file" checked> <span data-i18n="attFile">Active file</span></label>
+      <label data-i18n-title="attSelectionTip"><input type="checkbox" id="a-selection"> <span data-i18n="attSelection">Text selection</span></label>
+      <label data-i18n-title="attTreeTip"><input type="checkbox" id="a-tree"> <span data-i18n="attTree">Workspace structure</span></label>
+      <label data-i18n-title="attDiffTip"><input type="checkbox" id="a-diff"> <span data-i18n="attDiff">Git diff</span></label>
     </div>
     <textarea id="input" data-i18n-ph="inputPlaceholder" placeholder="Message Muse… (Ctrl+Enter to send)"></textarea>
     <div class="row">
@@ -761,6 +761,10 @@ function chatHtml() {
       warn: 'Warn when waiting longer than', retention: 'Keep relay archive for',
       retentionHint: 'Older request/answer files in the archive folder are deleted automatically.',
       attachGroup: 'Default attachments', attFile: 'Active file', attSelection: 'Text selection', attTree: 'Workspace structure', attDiff: 'Git diff',
+      attFileTip: 'Sends the whole content of the file currently open in your editor, so Muse can read it before answering.',
+      attSelectionTip: 'Sends only the text you have selected (highlighted) in the editor - best for asking about a few specific lines.',
+      attTreeTip: 'Sends the folder and file names of your project - a map of the project, without any file contents.',
+      attDiffTip: 'Sends your uncommitted changes: the lines added, edited, or removed since your last commit. Great for code review.',
       sec2: '2 seconds', sec4: '4 seconds', sec5: '5 seconds', sec8: '8 seconds', sec10: '10 seconds', sec15: '15 seconds', sec20: '20 seconds', sec30: '30 seconds', sec60: '60 seconds', sec120: '120 seconds',
       req1: '1 request', req3: '3 requests', req5: '5 requests',
       min1: '1 minute', min3: '3 minutes', min5: '5 minutes', min10: '10 minutes', off: 'Off',
@@ -791,6 +795,10 @@ function chatHtml() {
       warn: 'Peringatan bila menunggu lebih dari', retention: 'Simpan arsip relay selama',
       retentionHint: 'File request/jawaban lama di folder archive dihapus otomatis setelah batas ini.',
       attachGroup: 'Lampiran bawaan', attFile: 'File aktif', attSelection: 'Seleksi teks', attTree: 'Struktur workspace', attDiff: 'Git diff',
+      attFileTip: 'Mengirim seluruh isi file yang sedang terbuka di editor, supaya Muse bisa membacanya sebelum menjawab.',
+      attSelectionTip: 'Mengirim hanya teks yang sedang kamu blok/pilih di editor - cocok untuk bertanya soal beberapa baris tertentu.',
+      attTreeTip: 'Mengirim daftar folder dan nama file proyekmu - peta proyek, tanpa isi file apa pun.',
+      attDiffTip: 'Mengirim perubahan yang belum di-commit: baris yang ditambah, diubah, atau dihapus sejak commit terakhir. Cocok untuk review kode.',
       sec2: '2 detik', sec4: '4 detik', sec5: '5 detik', sec8: '8 detik', sec10: '10 detik', sec15: '15 detik', sec20: '20 detik', sec30: '30 detik', sec60: '60 detik', sec120: '120 detik',
       req1: '1 request', req3: '3 request', req5: '5 request',
       min1: '1 menit', min3: '3 menit', min5: '5 menit', min10: '10 menit', off: 'Nonaktif',
@@ -825,6 +833,10 @@ function chatHtml() {
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) {
       var k = el.getAttribute('data-i18n-ph');
       if (STR[lang][k]) el.setAttribute('placeholder', STR[lang][k]);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+      var k = el.getAttribute('data-i18n-title');
+      if (STR[lang][k]) el.setAttribute('title', STR[lang][k]);
     });
     document.documentElement.setAttribute('lang', lang);
     renderPause();
