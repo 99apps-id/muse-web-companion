@@ -135,7 +135,7 @@ Throughout this document, replace the placeholders with your own values:
 
    Or in VS Code: Extensions view → `...` menu → **Install from VSIX...** → pick the file.
 
-5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel.
+5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel. You can also open the panel from the keyboard: press `Ctrl+Shift+P`, type `Muse: Buka Panel Chat Muse`, and press Enter.
 
 6. Without the relay, you can already use **Context** and **Tunnel** modes and all commands. Continue with Part B only if you want Muse to answer inside the panel.
 
