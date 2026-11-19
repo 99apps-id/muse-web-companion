@@ -1,0 +1,182 @@
+{
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.openMuse",
+        "title": "Muse: Buka Muse Web (muse.ai)"
+      },
+      {
+        "command": "museCompanion.openChat",
+        "title": "Muse: Buka Panel Chat Muse",
+        "category": "Muse Companion",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "museCompanion.openSettings",
+        "title": "Muse: Pengaturan Relay (di panel Chat)",
+        "category": "Muse Companion",
+        "icon": "$(gear)"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.askTunnelReadFile",
+        "title": "Muse: Minta Muse Baca File Ini dari Laptop (via tunnel)"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.askTunnelReadWorkspace",
+        "title": "Muse: Minta Muse Baca Workspace Ini dari Laptop (via tunnel)"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.sendFile",
+        "title": "Muse: Salin File Aktif sebagai Konteks + Buka Muse"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.askAboutFile",
+        "title": "Muse: Tanya tentang File Aktif..."
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.sendSelection",
+        "title": "Muse: Salin Seleksi sebagai Konteks + Buka Muse"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.sendWorkspaceTree",
+        "title": "Muse: Salin Struktur Workspace + Buka Muse"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.sendGitDiff",
+        "title": "Muse: Salin Git Status + Diff + Buka Muse"
+      },
+      {
+        "category": "Muse Companion",
+        "command": "museCompanion.sendDiagnostics",
+        "title": "Muse: Salin Problems/Diagnostics + Buka Muse"
+      }
+    ],
+    "configuration": {
+      "properties": {
+        "museCompanion.maxChars": {
+          "default": 100000,
+          "description": "Batas karakter konten file/diff yang disalin (sisanya dipotong dengan catatan).",
+          "type": "number"
+        },
+        "museCompanion.museUrl": {
+          "default": "https://muse.ai",
+          "description": "URL Muse web yang dibuka extension.",
+          "type": "string"
+        },
+        "museCompanion.openAfterCopy": {
+          "default": true,
+          "description": "Buka muse.ai di browser setelah menyalin konteks ke clipboard.",
+          "type": "boolean"
+        }
+      },
+      "title": "Muse Companion"
+    },
+    "keybindings": [
+      {
+        "command": "museCompanion.openMuse",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m"
+      },
+      {
+        "command": "museCompanion.askTunnelReadFile",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "museCompanion.sendSelection",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "museCompanion.askTunnelReadFile",
+          "group": "muse@1"
+        },
+        {
+          "command": "museCompanion.sendSelection",
+          "group": "muse@2",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "museCompanion.sendFile",
+          "group": "muse@3"
+        },
+        {
+          "command": "museCompanion.askAboutFile",
+          "group": "muse@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "museCompanion.openMuse",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "museCompanion.askTunnelReadFile",
+          "group": "muse@1"
+        },
+        {
+          "command": "museCompanion.sendWorkspaceTree",
+          "group": "muse@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "museCompanion.openMuse",
+          "when": "view == museCompanion.chatView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "museCompanion",
+          "title": "Muse",
+          "icon": "icons/muse.svg"
+        }
+      ]
+    },
+    "views": {
+      "museCompanion": [
+        {
+          "id": "museCompanion.chatView",
+          "name": "Chat",
+          "type": "webview",
+          "icon": "icons/muse.svg",
+          "contextualTitle": "Muse Chat"
+        }
+      ]
+    }
+  },
+  "description": "Pendamping VS Code untuk Muse personal di muse.ai: kirim file, seleksi, struktur workspace, git diff, dan path laptop (via tunnel Muse) ke chat Muse dengan satu klik. Bukan extension resmi Meta.",
+  "displayName": "Muse Companion for Muse Web",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "license": "MIT",
+  "main": "./extension.js",
+  "name": "muse-web-companion",
+  "publisher": "matt-local",
+  "version": "0.1.0"
+}
