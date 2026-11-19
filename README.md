@@ -24,6 +24,7 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 ## Table of Contents
 
 - [Features](#features)
+- [Use Cases](#use-cases)
 - [Screenshots](#screenshots)
 - [How It Works](#how-it-works)
 - [Requirements](#requirements)
@@ -53,6 +54,15 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 - **Watchdog** — a relay request that stays unanswered for 15 minutes is re-woken automatically (max 2 retries), so a crashed or timed-out worker never strands a question forever.
 - **Bilingual UI** — English (default) and Bahasa Indonesia, switchable in Settings. The UI language is independent from the relay answer language.
 - **Zero dependencies** — plain JavaScript, one `extension.js`, no build step.
+
+## Use Cases
+
+What people actually do with a personal Muse that is reachable from their coding tools — through this panel in Relay mode, or from another coding agent through the [MCP bridge](#part-c--mcp-bridge-for-other-agents-optional):
+
+- **Your social accounts, inside the coding chat.** While building a content tool or landing page, ask from the panel: *"Fetch my 10 most recent Instagram posts with like/comment counts and summarize what performed best this week"*, or *"Read my Threads DMs from the last 3 days, group them by topic, and list what still needs a reply."* Muse reads the connected account and the answer appears in the panel — or, via the bridge, in the chat UI of VS Code, Claude Code, or Antigravity, next to the code it belongs to.
+- **Post without leaving the editor.** Ask an agent to have Muse draft and publish a release announcement to your Threads and Instagram. Muse shows you the exact text for approval in its own chat first — nothing is ever posted on an agent's say-so — and the confirmation returns through the relay.
+- **Delegate long errands to a Muse worker.** A real run (19 Nov 2026): an Antigravity agent (Opus 5.5) delegated a multi-step web audit through the bridge — find and validate CCTV streams for three cities, update a data file — and kept coding while a Muse worker did the research. The result came back by ticket 23 minutes later: *0 new cameras passed validation; 79 existing entries re-verified and updated; nothing deployed, awaiting the owner's decision.* (Full write-up and screenshot in the `muse-relay-mcp` README.)
+- **Ask the Muse that knows your projects.** The panel is the fastest way to ask about decisions, preferences, and history from your other projects and conversations — context a coding agent staring at one workspace cannot grep its way to.
 
 ## How It Works
 
