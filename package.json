@@ -10,76 +10,76 @@
       {
         "category": "Muse Companion",
         "command": "museCompanion.openMuse",
-        "title": "Muse: Buka Muse Web (muse.ai)"
+        "title": "Muse: Open Muse Web (muse.ai)"
       },
       {
         "command": "museCompanion.openChat",
-        "title": "Muse: Buka Panel Chat Muse",
+        "title": "Muse: Open the Muse Chat Panel",
         "category": "Muse Companion",
         "icon": "$(sparkle)"
       },
       {
         "command": "museCompanion.openSettings",
-        "title": "Muse: Pengaturan Relay (di panel Chat)",
+        "title": "Muse: Relay Settings (in the Chat panel)",
         "category": "Muse Companion",
         "icon": "$(gear)"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.askTunnelReadFile",
-        "title": "Muse: Minta Muse Baca File Ini dari Laptop (via tunnel)"
+        "title": "Muse: Ask Muse to Read This File from My Machine (via tunnel)"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.askTunnelReadWorkspace",
-        "title": "Muse: Minta Muse Baca Workspace Ini dari Laptop (via tunnel)"
+        "title": "Muse: Ask Muse to Read This Workspace from My Machine (via tunnel)"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.sendFile",
-        "title": "Muse: Salin File Aktif sebagai Konteks + Buka Muse"
+        "title": "Muse: Copy Active File as Context + Open Muse"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.askAboutFile",
-        "title": "Muse: Tanya tentang File Aktif..."
+        "title": "Muse: Ask about the Active File..."
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.sendSelection",
-        "title": "Muse: Salin Seleksi sebagai Konteks + Buka Muse"
+        "title": "Muse: Copy Selection as Context + Open Muse"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.sendWorkspaceTree",
-        "title": "Muse: Salin Struktur Workspace + Buka Muse"
+        "title": "Muse: Copy Workspace Tree + Open Muse"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.sendGitDiff",
-        "title": "Muse: Salin Git Status + Diff + Buka Muse"
+        "title": "Muse: Copy Git Status + Diff + Open Muse"
       },
       {
         "category": "Muse Companion",
         "command": "museCompanion.sendDiagnostics",
-        "title": "Muse: Salin Problems/Diagnostics + Buka Muse"
+        "title": "Muse: Copy Problems/Diagnostics + Open Muse"
       }
     ],
     "configuration": {
       "properties": {
         "museCompanion.maxChars": {
           "default": 100000,
-          "description": "Batas karakter konten file/diff yang disalin (sisanya dipotong dengan catatan).",
+          "description": "Character limit for copied file/diff content (the rest is truncated with a note).",
           "type": "number"
         },
         "museCompanion.museUrl": {
           "default": "https://muse.ai",
-          "description": "URL Muse web yang dibuka extension.",
+          "description": "The Muse web URL the extension opens.",
           "type": "string"
         },
         "museCompanion.openAfterCopy": {
           "default": true,
-          "description": "Buka muse.ai di browser setelah menyalin konteks ke clipboard.",
+          "description": "Open muse.ai in the browser after copying context to the clipboard.",
           "type": "boolean"
         }
       },
@@ -169,7 +169,7 @@
       ]
     }
   },
-  "description": "Pendamping VS Code untuk Muse personal di muse.ai: kirim file, seleksi, struktur workspace, git diff, dan path laptop (via tunnel Muse) ke chat Muse dengan satu klik. Bukan extension resmi Meta.",
+  "description": "A VS Code companion for your personal Muse at muse.ai: send files, selections, workspace trees, git diffs, and paths on your machine (via Muse's tunnel) to a Muse chat in one click. Not an official Meta extension.",
   "displayName": "Muse Companion for Muse Web",
   "engines": {
     "vscode": "^1.80.0"

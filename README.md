@@ -54,7 +54,7 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 
 The shortest path:
 
-1. Do **Part A**, reload the VS Code window, and open the panel: click the **Muse** icon in the Activity Bar, or press `Ctrl+Shift+P` and run `Muse: Buka Panel Chat Muse`.
+1. Do **Part A**, reload the VS Code window, and open the panel: click the **Muse** icon in the Activity Bar, or press `Ctrl+Shift+P` and run `Muse: Open the Muse Chat Panel`.
 2. Send with **Context** or **Tunnel** mode — both work immediately, no relay needed.
 3. Want Muse's answers inside the panel? Do **Part B** once. *Not a terminal person?* Open [muse.ai](https://muse.ai) and ask Muse to set the relay up with you — Muse creates the polling hook and its worker instructions itself; your part is only installing Tailscale and pasting a handful of PowerShell commands as administrator, one at a time.
 
@@ -152,7 +152,7 @@ Throughout this document, replace the placeholders with your own values:
 
    Or in VS Code: Extensions view → `...` menu → **Install from VSIX...** → pick the file.
 
-5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel. You can also open the panel from the keyboard: press `Ctrl+Shift+P`, type `Muse: Buka Panel Chat Muse`, and press Enter.
+5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel. You can also open the panel from the keyboard: press `Ctrl+Shift+P`, type `Muse: Open the Muse Chat Panel`, and press Enter.
 
 6. Without the relay, you can already use **Context** and **Tunnel** modes and all commands. Continue with Part B only if you want Muse to answer inside the panel.
 
@@ -276,7 +276,7 @@ Clone or copy the `muse-relay-mcp` project onto your machine (for example to `C:
 ### Opening the chat panel
 
 1. Click the **Muse** icon in the **Activity Bar** — the vertical icon strip on the far left of the VS Code window. The Chat panel opens in the Side Bar.
-2. Or use the Command Palette: press `Ctrl+Shift+P`, type `Muse: Buka Panel Chat Muse`, and press Enter.
+2. Or use the Command Palette: press `Ctrl+Shift+P`, type `Muse: Open the Muse Chat Panel`, and press Enter.
 3. Optional placement: drag the panel by its **Chat** title tab to the Explorer area, or move the whole Muse container to the **Secondary Side Bar** (right side) if you want the chat next to your code. VS Code remembers the position.
 4. Do not confuse the panel with `Ctrl+Alt+M` — that shortcut opens muse.ai in your browser, not the panel.
 5. If the Muse icon is missing, run `Developer: Reload Window` from the Command Palette; if it is still missing, reinstall the `.vsix` (see Part A).
@@ -296,17 +296,17 @@ Clone or copy the `muse-relay-mcp` project onto your machine (for example to `C:
 
 | Command | Shortcut | What it does |
 | --- | --- | --- |
-| Muse: Buka Muse Web (muse.ai) | `Ctrl+Alt+M` | Open muse.ai |
-| Muse: Buka Panel Chat Muse | — | Focus the Chat panel |
-| Muse: Pengaturan Relay (di panel Chat) | — | Open the panel and its Settings section |
-| Muse: Minta Muse Baca File Ini dari Laptop (via tunnel) | `Ctrl+Alt+R` | Compose a Tunnel message with the active file's absolute path |
-| Muse: Minta Muse Baca Workspace Ini dari Laptop (via tunnel) | — | Compose a Tunnel message for the whole workspace |
-| Muse: Salin File Aktif sebagai Konteks + Buka Muse | — | Copy the active file as context, open muse.ai |
-| Muse: Tanya tentang File Aktif... | — | Ask a question about the active file (input box) |
-| Muse: Salin Seleksi sebagai Konteks + Buka Muse | `Ctrl+Alt+S` | Copy the current selection as context |
-| Muse: Salin Struktur Workspace + Buka Muse | — | Copy the workspace tree |
-| Muse: Salin Git Status + Diff + Buka Muse | — | Copy git status and diff |
-| Muse: Salin Problems/Diagnostics + Buka Muse | — | Copy editor diagnostics |
+| Muse: Open Muse Web (muse.ai) | `Ctrl+Alt+M` | Open muse.ai |
+| Muse: Open the Muse Chat Panel | — | Focus the Chat panel |
+| Muse: Relay Settings (in the Chat panel) | — | Open the panel and its Settings section |
+| Muse: Ask Muse to Read This File from My Machine (via tunnel) | `Ctrl+Alt+R` | Compose a Tunnel message with the active file's absolute path |
+| Muse: Ask Muse to Read This Workspace from My Machine (via tunnel) | — | Compose a Tunnel message for the whole workspace |
+| Muse: Copy Active File as Context + Open Muse | — | Copy the active file as context, open muse.ai |
+| Muse: Ask about the Active File... | — | Ask a question about the active file (input box) |
+| Muse: Copy Selection as Context + Open Muse | `Ctrl+Alt+S` | Copy the current selection as context |
+| Muse: Copy Workspace Tree + Open Muse | — | Copy the workspace tree |
+| Muse: Copy Git Status + Diff + Open Muse | — | Copy git status and diff |
+| Muse: Copy Problems/Diagnostics + Open Muse | — | Copy editor diagnostics |
 
 Most commands are also on the editor and Explorer context menus.
 
