@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/cozy-muse-office.gif" alt="Muse agent working in a cozy office - Muse Companion for Muse Web" width="420">
+</p>
+
 # Muse Companion for Muse Web
 
 [![Release](https://img.shields.io/badge/release-v0.1.0-blue)](https://github.com/99apps-id/muse-web-companion)
@@ -11,10 +15,6 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 
 <a id="screenshots"></a>
 
-<p align="center">
-  <img src="images/cozy-muse-office.gif" alt="Muse agent working in a cozy office - Muse Companion for Muse Web" width="420">
-</p>
-<p align="center"><em>Your personal Muse, right beside your editor.</em></p>
 
 <p align="center">
   <img src="images/chat-panel.png" alt="Muse Companion chat panel with a relay conversation" width="420">
