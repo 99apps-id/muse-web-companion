@@ -1,6 +1,6 @@
 # Muse Companion for Muse Web
 
-[![Release](https://img.shields.io/badge/release-v0.1.0-blue)](https://github.com/)
+[![Release](https://img.shields.io/badge/release-v0.1.0-blue)](https://github.com/99apps-id/muse-web-companion)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC)](https://code.visualstudio.com/)
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](#)
@@ -127,7 +127,7 @@ Throughout this document, replace the placeholders with your own values:
 1. Clone this repository and enter it:
 
    ```bash
-   git clone <REPO_URL> muse-web-companion
+   git clone https://github.com/99apps-id/muse-web-companion.git muse-web-companion
    cd muse-web-companion
    ```
 
