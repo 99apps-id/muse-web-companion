@@ -23,6 +23,7 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Features](#features)
 - [Use Cases](#use-cases)
 - [Screenshots](#screenshots)
@@ -40,6 +41,22 @@ A VS Code companion extension for your **personal Muse at [muse.ai](https://muse
 - [Troubleshooting](#troubleshooting)
 - [Changelog](#changelog)
 - [License](#license)
+
+## Quick Start
+
+**Just want it working?** Take the shortest path for what you need — every part is labelled with its difficulty, so you know what you are signing up for before you start.
+
+| Step | What you get | Difficulty | Time |
+| --- | --- | --- | --- |
+| [Part A — Install the extension](#part-a--install-the-extension) | Chat panel + Context/Tunnel modes | 🟡 **Moderate** — a few terminal commands to package the `.vsix` | ~10 min |
+| [Part B — Set up the relay](#part-b--set-up-the-relay-optional-for-in-panel-answers) *(optional)* | Muse answers inside the panel | 🔴 **Advanced, one-time** — admin PowerShell, Tailscale, SSH keys; the hook itself is created by Muse on request | ~20–30 min |
+| [Part C — MCP bridge](#part-c--mcp-bridge-for-other-agents-optional) *(optional)* | Other coding agents can ask your Muse | 🟡 **Moderate** — copy the separate project, paste a JSON snippet | ~10 min |
+
+The shortest path:
+
+1. Do **Part A**, reload the VS Code window, and open the panel: click the **Muse** icon in the Activity Bar, or press `Ctrl+Shift+P` and run `Muse: Buka Panel Chat Muse`.
+2. Send with **Context** or **Tunnel** mode — both work immediately, no relay needed.
+3. Want Muse's answers inside the panel? Do **Part B** once. *Not a terminal person?* Open [muse.ai](https://muse.ai) and ask Muse to set the relay up with you — Muse creates the polling hook and its worker instructions itself; your part is only installing Tailscale and pasting a handful of PowerShell commands as administrator, one at a time.
 
 ## Features
 
