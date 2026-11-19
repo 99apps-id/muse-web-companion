@@ -5,7 +5,7 @@
 <h1 align="center">Muse Companion for Muse Web</h1>
 
 <p align="center">
-  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.0-blue" alt="Release"></a>
+  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.1-blue" alt="Release"></a>
   <a href="https://code.visualstudio.com/"><img src="https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC" alt="VS Code"></a>
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
   <a href="#"><img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="Dependencies"></a>
@@ -148,13 +148,13 @@ Throughout this document, replace the placeholders with your own values:
 
    ```bash
    npx -y @vscode/vsce package
-   # produces muse-web-companion-0.1.0.vsix
+   # produces muse-web-companion-0.1.1.vsix
    ```
 
 4. Install it into VS Code:
 
    ```bash
-   code --install-extension muse-web-companion-0.1.0.vsix
+   code --install-extension muse-web-companion-0.1.1.vsix
    ```
 
    Or in VS Code: Extensions view → `...` menu → **Install from VSIX...** → pick the file.
@@ -447,6 +447,11 @@ Applied (`applied.json`, written by Muse's worker after applying a settings chan
 | VS Code does not show new MCP servers | Hosts load MCP config at startup | Restart the app or start a new session |
 
 ## Changelog
+
+### 0.1.1
+
+- Attachment checkboxes now explain themselves: hovering Active file, Text selection, Workspace structure, or Git diff shows a plain-language tooltip (English / Bahasa Indonesia, following the UI language)
+- README: new "Context attachments, explained" glossary in Usage, a cozy Muse animation as the header image, and a centered title and badges (badges are HTML now, so they render correctly)
 
 ### 0.1.0 — first public release
 
