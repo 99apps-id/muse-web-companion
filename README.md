@@ -5,10 +5,10 @@
 <h1 align="center">Muse Companion for Muse Web</h1>
 
 <p align="center">
-[![Release](https://img.shields.io/badge/release-v0.1.0-blue)](https://github.com/99apps-id/muse-web-companion)
-[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC)](https://code.visualstudio.com/)
-![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)
-[![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](#)
+  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.0-blue" alt="Release"></a>
+  <a href="https://code.visualstudio.com/"><img src="https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC" alt="VS Code"></a>
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
+  <a href="#"><img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="Dependencies"></a>
 </p>
 
 A VS Code companion extension for your **personal Muse at [muse.ai](https://muse.ai)**. It adds a chat-style sidebar panel and one-click context sharing (active file, selection, workspace tree, git diff, diagnostics) — plus an optional **asynchronous file relay** that lets Muse actually answer inside the panel, and an optional **MCP bridge** (a separate companion project — see Part C) so other coding agents can ask your Muse questions.
