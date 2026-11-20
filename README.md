@@ -5,7 +5,7 @@
 <h1 align="center">Muse Companion for Muse Web</h1>
 
 <p align="center">
-  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.2-blue" alt="Release"></a>
+  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.3-blue" alt="Release"></a>
   <a href="https://code.visualstudio.com/"><img src="https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC" alt="VS Code"></a>
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
   <a href="#"><img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="Dependencies"></a>
@@ -71,15 +71,15 @@ The shortest path:
 If an operator gives you (an AI coding agent such as **Claude Code, OpenAI Codex CLI, Google Antigravity, VS Code Copilot, Cursor, Windsurf, or Gemini CLI**) this repository URL and asks you to install it for them, follow this exact checklist:
 
 1. **Dependencies & Prerequisites (Zero npm packages required):**
-   - To install from the prebuilt release `.vsix`: **no Node.js or npm dependencies are needed** — just download `muse-web-companion-0.1.2.vsix` from GitHub Releases and install it via the IDE CLI.
+   - To install from the prebuilt release `.vsix`: **no Node.js or npm dependencies are needed** — just download `muse-web-companion-0.1.3.vsix` from GitHub Releases and install it via the IDE CLI.
    - Only if packaging from source: **Node.js `>= 18`** (`npx -y @vscode/vsce package`). Do **not** run `npm install` (`extension.js` has zero runtime dependencies).
    - **Tailscale is NOT required:** Context mode works with zero network/SSH setup. Relay & Tunnel modes only need *any* working SSH route from Muse's environment to this machine (e.g. reverse SSH tunnel `ssh -R` via a VPS/jump host, Cloudflare Tunnel, WireGuard, ZeroTier, Tailscale, or direct IP). Do not install Tailscale unless the operator specifically asks for it.
 2. **Download (or package) the `.vsix` and install into the operator's IDE(s):**
-   - Download the latest prebuilt `.vsix` from `https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.2.vsix` (or clone the repo and run `npx -y @vscode/vsce package`).
+   - Download the latest prebuilt `.vsix` from `https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.3.vsix` (or clone the repo and run `npx -y @vscode/vsce package`).
    - Install into whichever VS Code-compatible IDE(s) exist on the operator's machine:
-     - **VS Code:** `code --install-extension muse-web-companion-0.1.2.vsix --force`
-     - **Google Antigravity IDE:** `antigravity-ide --install-extension muse-web-companion-0.1.2.vsix --force` (on Windows: `"$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension muse-web-companion-0.1.2.vsix --force`)
-     - **Cursor / Windsurf:** `cursor --install-extension muse-web-companion-0.1.2.vsix --force` / `windsurf --install-extension muse-web-companion-0.1.2.vsix --force`
+     - **VS Code:** `code --install-extension muse-web-companion-0.1.3.vsix --force`
+     - **Google Antigravity IDE:** `antigravity-ide --install-extension muse-web-companion-0.1.3.vsix --force` (on Windows: `"$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension muse-web-companion-0.1.3.vsix --force`)
+     - **Cursor / Windsurf:** `cursor --install-extension muse-web-companion-0.1.3.vsix --force` / `windsurf --install-extension muse-web-companion-0.1.3.vsix --force`
 3. **Create the local relay directories (`~/muse-relay/{inbox,outbox,archive}`):**
    - **Windows (PowerShell):**
      ```powershell
@@ -104,6 +104,7 @@ If an operator gives you (an AI coding agent such as **Claude Code, OpenAI Codex
 - **Pause / resume** the relay from the panel. Messages sent while paused are held in the panel and flushed automatically on resume.
 - **Settings section in the panel** — relay polling interval, requests per worker wake, answer language, outbox polling, answer notifications, long-wait warnings, archive retention, default attachments. Panel settings apply instantly; Muse-side settings are applied automatically by Muse from a control file (no manual chat requests needed), and the panel shows the applied state.
 - **Watchdog** — a relay request that stays unanswered for 15 minutes is re-woken automatically (max 2 retries), so a crashed or timed-out worker never strands a question forever.
+- **Approval mode for agent requests** — optionally, questions from coding agents (via the MCP bridge) wait as a card in the panel for your **Approve / Reject** before they reach Muse; unapproved requests expire after 30 minutes. Your own panel messages are never gated.
 - **Bilingual UI** — English (default) and Bahasa Indonesia, switchable in Settings. The UI language is independent from the relay answer language.
 - **Zero dependencies** — plain JavaScript, one `extension.js`, no build step.
 
@@ -161,13 +162,13 @@ Throughout this document, replace the placeholders with your own values:
 
 **Fastest way (prebuilt `.vsix` from GitHub Releases — no build needed):**
 
-1. Download [`muse-web-companion-0.1.2.vsix`](https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.2.vsix) from the latest GitHub Release.
+1. Download [`muse-web-companion-0.1.3.vsix`](https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.3.vsix) from the latest GitHub Release.
 2. Install it into VS Code or Antigravity IDE:
 
    ```bash
-   code --install-extension muse-web-companion-0.1.2.vsix
+   code --install-extension muse-web-companion-0.1.3.vsix
    # or for Antigravity IDE:
-   antigravity-ide --install-extension muse-web-companion-0.1.2.vsix
+   antigravity-ide --install-extension muse-web-companion-0.1.3.vsix
    ```
 
    Or in the IDE: Extensions view → `...` menu → **Install from VSIX...** → pick the downloaded file.
@@ -191,8 +192,8 @@ Throughout this document, replace the placeholders with your own values:
 
    ```bash
    npx -y @vscode/vsce package
-   # produces muse-web-companion-0.1.2.vsix
-   code --install-extension muse-web-companion-0.1.2.vsix
+   # produces muse-web-companion-0.1.3.vsix
+   code --install-extension muse-web-companion-0.1.3.vsix
    ```
 
 5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel. You can also open the panel from the keyboard: press `Ctrl+Shift+P`, type `Muse: Open the Muse Chat Panel`, and press Enter.
@@ -390,6 +391,7 @@ Panel settings are stored per user and saved the moment they change.
 | Hook polling interval | 5–120 s | 5 s | How often Muse checks the inbox. The panel shows "Applied by Muse: …" from `applied.json` once Muse confirms. |
 | Max requests per turn | 1 / 3 / 5 | 3 | How many requests one worker wake may answer. |
 | Relay answer language | Indonesian / English | Indonesian | Independent from the UI language. Sent with each request as `answerLanguage`. |
+| Require approval for agent requests | on / off | off | Questions from coding agents (MCP bridge) wait in the panel for your approval before reaching Muse. Unapproved requests expire after 30 minutes. |
 
 **Panel**
 
@@ -409,6 +411,7 @@ Folder layout (on your machine):
 ```text
 muse-relay/
   inbox/      req-<id>.json     requests waiting for Muse
+  pending/    req-<id>.json     agent requests waiting for your approval (approval mode only)
   outbox/     res-<id>.json     answers waiting to be displayed
   archive/    req-*.json, res-*.json   completed pairs (pruned by retention setting)
   control.json                  panel -> Muse control channel
@@ -448,7 +451,7 @@ Response (`res-<id>.json`):
 Control (`control.json`, written by the panel; writes are merged so pausing never clobbers settings):
 
 ```json
-{ "paused": false, "desiredPollSecs": 5, "maxPerWake": 3, "updatedAt": "2026-11-19T01:55:55.244Z" }
+{ "paused": false, "desiredPollSecs": 5, "maxPerWake": 3, "requireApproval": false, "updatedAt": "2026-11-19T01:55:55.244Z" }
 ```
 
 Applied (`applied.json`, written by Muse's worker after applying a settings change):
@@ -456,6 +459,8 @@ Applied (`applied.json`, written by Muse's worker after applying a settings chan
 ```json
 { "hookPollSecs": 5, "appliedAt": "2026-11-19T01:57:10.000Z" }
 ```
+
+Approval flow (only when `requireApproval` is `true` in `control.json`): the MCP bridge writes agent requests to `pending/` instead of `inbox/`, so the Muse-side hook never sees them. The panel lists each one as a card — **Approve** stamps `approvalStatus: "approved"` and moves the file to `inbox/`; **Reject** writes a `DECLINED` answer to `outbox/` and archives the request. A request left unapproved for 30 minutes expires the same way, with an `EXPIRED` answer. Panel messages (`source: "panel"`) are never gated.
 
 ## Security and Privacy
 
@@ -480,10 +485,15 @@ Applied (`applied.json`, written by Muse's worker after applying a settings chan
 | Answer takes > 15 minutes | Worker timed out or queue is long | The watchdog re-wakes automatically (max 2×); check the archive for a late answer |
 | Settings change not applied | Worker queue busy | The panel shows requested vs applied values; application is automatic on a later poll cycle |
 | MCP tool returns `PAUSED` | Panel pause is on | Resume the relay in the panel |
+| Agent reports `APPROVAL_PENDING` | Approval mode is on | Approve or reject the request card in the panel; unapproved requests expire after 30 minutes |
 | MCP questions queue forever | Hook disabled (bridge cannot see Muse-side state) | Enable the hook; queued questions will be answered then |
 | VS Code does not show new MCP servers | Hosts load MCP config at startup | Restart the app or start a new session |
 
 ## Changelog
+
+### 0.1.3
+
+- **Approval mode for agent requests** — new relay setting *Require approval for agent requests* (mirrored to `control.json` as `requireApproval`). While on, questions from coding agents via muse-relay-mcp wait in a new `pending/` folder and appear in the panel as approval cards (**Approve / Reject**, with a notification when one arrives). Approving moves the request into the inbox; rejecting returns a `DECLINED` answer to the agent; requests left unapproved for 30 minutes expire with an `EXPIRED` answer. Panel-originated messages are never gated.
 
 ### 0.1.2
 

@@ -80,11 +80,18 @@ function relayRoot() {
 
 function relayDirs() {
   const root = relayRoot();
-  for (const d of ['inbox', 'outbox', 'archive']) {
+  for (const d of ['inbox', 'outbox', 'archive', 'pending']) {
     try { fs.mkdirSync(path.join(root, d), { recursive: true }); } catch {}
   }
   return root;
 }
+
+// Approval mode: while settings.requireApproval is on (mirrored to
+// control.json), the MCP bridge writes agent requests to pending/ instead of
+// the inbox; they only reach Muse after the owner approves them here in the
+// panel. Unapproved requests expire after this TTL (matches muse-relay-mcp).
+const APPROVAL_TTL_MS = 30 * 60 * 1000;
+const APPROVAL_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 
 function atomicWriteJson(dir, filename, obj) {
   fs.mkdirSync(dir, { recursive: true });
@@ -115,6 +122,7 @@ const DEFAULT_SETTINGS = {
   uiLanguage: 'en',      // panel UI language ('en' default | 'id'); answer language is separate
   hookPollSecs: 5,       // Muse-side: relay hook poll interval (via control.json)
   maxPerWake: 3,         // Muse-side: max requests a worker answers per wake
+  requireApproval: false, // Muse-side (via control.json): agent (MCP) requests wait for panel approval
   answerLanguage: 'id',  // Muse-side: language of relay answers ('id' | 'en')
   outboxPollSecs: 4,     // panel-local: how often the panel checks for answers
   notifyOnAnswer: true, // panel-local: VS Code notification when an answer arrives
@@ -132,6 +140,7 @@ function sanitizeSettings(raw) {
   s.uiLanguage = s.uiLanguage === 'id' ? 'id' : 'en';
   s.hookPollSecs = pickAllowed(Number(s.hookPollSecs), ALLOWED_HOOK_POLL, DEFAULT_SETTINGS.hookPollSecs);
   s.maxPerWake = pickAllowed(Number(s.maxPerWake), ALLOWED_MAX_PER_WAKE, DEFAULT_SETTINGS.maxPerWake);
+  s.requireApproval = s.requireApproval === true;
   s.answerLanguage = s.answerLanguage === 'en' ? 'en' : 'id';
   s.outboxPollSecs = pickAllowed(Number(s.outboxPollSecs), ALLOWED_OUTBOX_POLL, DEFAULT_SETTINGS.outboxPollSecs);
   s.notifyOnAnswer = s.notifyOnAnswer !== false;
@@ -227,13 +236,13 @@ function register(context) {
     context.globalState.update('museRelaySettings', settings);
     updateStatusBar();
     try {
-      writeRelayControl({ desiredPollSecs: settings.hookPollSecs, maxPerWake: settings.maxPerWake });
+      writeRelayControl({ desiredPollSecs: settings.hookPollSecs, maxPerWake: settings.maxPerWake, requireApproval: settings.requireApproval });
     } catch {}
     return settings;
   };
   // Make sure control.json reflects the stored Muse-side settings from the
   // start, and prune the archive per the retention setting.
-  try { writeRelayControl({ desiredPollSecs: settings.hookPollSecs, maxPerWake: settings.maxPerWake }); } catch {}
+  try { writeRelayControl({ desiredPollSecs: settings.hookPollSecs, maxPerWake: settings.maxPerWake, requireApproval: settings.requireApproval }); } catch {}
   pruneArchive(settings.archiveRetentionDays);
 
   sub(vscode.commands.registerCommand('museCompanion.openMuse', async () => {
@@ -479,12 +488,112 @@ function register(context) {
         } catch {}
       };
 
+      // --- Approval cards: requests waiting in pending/ (approval mode) ---
+      let pendingWatcher = null;
+      const notifiedApprovals = new Set();
+
+      const postApprovals = (items) => {
+        webviewView.webview.postMessage({ type: 'approvals', items });
+      };
+
+      const expireApproval = (reqPath, data) => {
+        // Mirror muse-relay-mcp's expiry: definitive answer + archive.
+        const outDir = path.join(relayDirs(), 'outbox');
+        atomicWriteJson(outDir, `res-${data.id}.json`, {
+          id: data.id,
+          createdAt: new Date().toISOString(),
+          answer: 'EXPIRED: the owner did not approve this request within 30 minutes, so it was never sent to Muse. Ask the user whether they want to submit it again.',
+          source: 'panel'
+        });
+        try { fs.renameSync(reqPath, path.join(relayRoot(), 'archive', `req-${data.id}.json`)); } catch {}
+      };
+
+      const scanApprovals = () => {
+        const items = [];
+        try {
+          const dir = path.join(relayDirs(), 'pending');
+          for (const f of fs.readdirSync(dir)) {
+            if (!/^req-.*\.json$/.test(f)) continue;
+            const reqPath = path.join(dir, f);
+            let data = null;
+            try { data = JSON.parse(fs.readFileSync(reqPath, 'utf8')); } catch { continue; }
+            if (!data || typeof data.id !== 'string' || !APPROVAL_ID_RE.test(data.id)) continue;
+            const createdMs = Date.parse(data.createdAt || '') || fs.statSync(reqPath).mtimeMs;
+            if (Date.now() - createdMs > APPROVAL_TTL_MS) {
+              expireApproval(reqPath, data);
+              continue;
+            }
+            items.push({
+              id: data.id,
+              at: data.createdAt || new Date(createdMs).toISOString(),
+              prompt: String(data.prompt || '').slice(0, 4000),
+              workspaceRoot: data.workspaceRoot || null
+            });
+            if (!notifiedApprovals.has(data.id)) {
+              notifiedApprovals.add(data.id);
+              vscode.window.showInformationMessage(L('Muse Relay: a coding agent request is waiting for your approval in the Muse panel.', 'Muse Relay: ada request dari agent coding yang menunggu persetujuanmu di panel Muse.'));
+            }
+          }
+        } catch {}
+        items.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+        postApprovals(items);
+      };
+
+      const startPendingWatcher = () => {
+        if (pendingWatcher) {
+          try { pendingWatcher.close(); } catch {}
+          pendingWatcher = null;
+        }
+        try {
+          const dir = path.join(relayDirs(), 'pending');
+          pendingWatcher = fs.watch(dir, () => {
+            if (scanDebounce) clearTimeout(scanDebounce);
+            scanDebounce = setTimeout(scanApprovals, 50);
+          });
+          pendingWatcher.on('error', () => {});
+        } catch {}
+      };
+
+      const approveRequest = (id) => {
+        if (!APPROVAL_ID_RE.test(String(id || ''))) return;
+        const dir = path.join(relayDirs(), 'pending');
+        const reqPath = path.join(dir, `req-${id}.json`);
+        try {
+          const data = JSON.parse(fs.readFileSync(reqPath, 'utf8'));
+          data.approvalStatus = 'approved';
+          data.approvedAt = new Date().toISOString();
+          atomicWriteJson(dir, `req-${id}.json`, data);
+          fs.renameSync(reqPath, path.join(relayRoot(), 'inbox', `req-${id}.json`));
+        } catch {}
+        scanApprovals();
+      };
+
+      const rejectRequest = (id) => {
+        if (!APPROVAL_ID_RE.test(String(id || ''))) return;
+        const dir = path.join(relayDirs(), 'pending');
+        const reqPath = path.join(dir, `req-${id}.json`);
+        try {
+          if (!fs.existsSync(reqPath)) return;
+          const outDir = path.join(relayDirs(), 'outbox');
+          atomicWriteJson(outDir, `res-${id}.json`, {
+            id: id,
+            createdAt: new Date().toISOString(),
+            answer: 'DECLINED: The owner declined this request in the Muse Companion panel, so it was not sent to Muse.',
+            source: 'panel'
+          });
+          fs.renameSync(reqPath, path.join(relayRoot(), 'archive', `req-${id}.json`));
+        } catch {}
+        scanApprovals();
+      };
+
       const restartPollTimer = () => {
         if (pollTimer) clearInterval(pollTimer);
-        pollTimer = setInterval(scanOutbox, settings.outboxPollSecs * 1000);
+        pollTimer = setInterval(() => { scanOutbox(); scanApprovals(); }, settings.outboxPollSecs * 1000);
       };
       scanOutbox();
       startOutboxWatcher();
+      scanApprovals();
+      startPendingWatcher();
       restartPollTimer();
 
       webviewView.onDidDispose(() => {
@@ -494,6 +603,10 @@ function register(context) {
         if (outboxWatcher) {
           try { outboxWatcher.close(); } catch {}
           outboxWatcher = null;
+        }
+        if (pendingWatcher) {
+          try { pendingWatcher.close(); } catch {}
+          pendingWatcher = null;
         }
       });
 
@@ -540,6 +653,18 @@ function register(context) {
           } catch (e) {
             vscode.window.showErrorMessage(L('Muse Companion: failed to save settings — ', 'Muse Companion: gagal menyimpan pengaturan — ') + e.message);
           }
+          return;
+        }
+        if (msg.type === 'getApprovals') {
+          scanApprovals();
+          return;
+        }
+        if (msg.type === 'approveRequest') {
+          approveRequest(msg.id);
+          return;
+        }
+        if (msg.type === 'rejectRequest') {
+          rejectRequest(msg.id);
           return;
         }
         if (msg.type === 'togglePause') {
@@ -719,6 +844,18 @@ function chatHtml() {
   .copybtn { background: transparent; border: 1px solid var(--vscode-panel-border); color: var(--vscode-descriptionForeground); border-radius: 3px; font-size: 10px; padding: 1px 6px; cursor: pointer; font-family: inherit; }
   .copybtn:hover { color: var(--vscode-foreground); background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,0.15)); }
   .sys { font-size: 11px; color: var(--vscode-descriptionForeground); padding: 2px 0; margin-bottom: 6px; }
+  #approvals { display: none; padding: 10px 12px 2px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); }
+  #approvals.active { display: block; }
+  .approval-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--vscode-descriptionForeground); margin-bottom: 6px; }
+  .approval-card { border: 1px solid var(--vscode-focusBorder); border-radius: 4px; padding: 8px 9px; margin-bottom: 8px; background: var(--vscode-sideBar-background); }
+  .approval-prompt { white-space: pre-wrap; word-wrap: break-word; line-height: 1.45; max-height: 160px; overflow-y: auto; }
+  .approval-meta { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 5px; }
+  .approval-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .approval-actions button { flex: 1; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; }
+  .btn-approve { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+  .btn-approve:hover { background: var(--vscode-button-hoverBackground); }
+  .btn-reject { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+  .btn-reject:hover { background: var(--vscode-button-secondaryHoverBackground); }
   #pendingBanner { display: none; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 12px; font-size: 11px; color: var(--vscode-descriptionForeground); background: var(--vscode-editor-background); border-top: 1px solid var(--vscode-panel-border); }
   #pendingBanner.active { display: flex; }
   .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--vscode-progressBar-background, #0078d4); display: inline-block; animation: musePulse 1.4s infinite ease-in-out; }
@@ -789,6 +926,10 @@ function chatHtml() {
           <option value="en">English</option>
         </select>
       </div>
+      <div class="field">
+        <label><span data-i18n="requireApproval">Require approval for agent requests</span><span class="hint" data-i18n="requireApprovalHint">Questions from coding agents (via the MCP bridge) wait in this panel for your approval before they reach Muse. Unapproved requests expire after 30 minutes.</span></label>
+        <input type="checkbox" id="s-approval">
+      </div>
     </div>
 
     <div class="group">
@@ -838,6 +979,8 @@ function chatHtml() {
     <div class="saved" id="savedLine"></div>
   </div>
 
+  <div id="approvals"></div>
+
   <div id="history"></div>
 
   <div id="pendingBanner">
@@ -876,6 +1019,12 @@ function chatHtml() {
       hookPollHint: 'How often Muse checks the relay inbox on this machine. Applied by Muse automatically from the control file — no need to ask in the muse.ai chat.',
       maxPerWake: 'Max requests per turn', maxPerWakeHint: 'How many requests Muse answers in a single wake-up.',
       answerLanguage: 'Relay answer language',
+      requireApproval: 'Require approval for agent requests',
+      requireApprovalHint: 'Questions from coding agents (via the MCP bridge) wait in this panel for your approval before they reach Muse. Unapproved requests expire after 30 minutes.',
+      approvalsTitle: 'Waiting for your approval', approve: 'Approve', reject: 'Reject',
+      approvalFrom: 'Coding agent request', approvalWorkspace: 'Workspace: {p}',
+      approvedSys: 'Approved — the request is now in the relay inbox.',
+      rejectedSys: 'Rejected — the request was not sent to Muse.',
       panelGroup: 'Panel', outboxPoll: 'Check for answers every', notify: 'Notify when an answer arrives',
       warn: 'Warn when waiting longer than', retention: 'Keep relay archive for',
       retentionHint: 'Older request/answer files in the archive folder are deleted automatically.',
@@ -912,6 +1061,12 @@ function chatHtml() {
       hookPollHint: 'Seberapa sering Muse memeriksa inbox relay di laptop ini. Diterapkan Muse secara otomatis dari file kontrol — tidak perlu meminta lewat chat muse.ai.',
       maxPerWake: 'Maks. request per giliran', maxPerWakeHint: 'Berapa request yang dijawab Muse dalam satu kali bangun.',
       answerLanguage: 'Bahasa jawaban relay',
+      requireApproval: 'Wajib persetujuan untuk request agent',
+      requireApprovalHint: 'Pertanyaan dari agent coding (lewat bridge MCP) menunggu persetujuanmu di panel ini sebelum diteruskan ke Muse. Request yang tidak disetujui kedaluwarsa setelah 30 menit.',
+      approvalsTitle: 'Menunggu persetujuanmu', approve: 'Setujui', reject: 'Tolak',
+      approvalFrom: 'Request agent coding', approvalWorkspace: 'Workspace: {p}',
+      approvedSys: 'Disetujui — request sekarang masuk inbox relay.',
+      rejectedSys: 'Ditolak — request tidak diteruskan ke Muse.',
       panelGroup: 'Panel', outboxPoll: 'Cek jawaban setiap', notify: 'Notifikasi saat jawaban tiba',
       warn: 'Peringatan bila menunggu lebih dari', retention: 'Simpan arsip relay selama',
       retentionHint: 'File request/jawaban lama di folder archive dihapus otomatis setelah batas ini.',
@@ -965,6 +1120,7 @@ function chatHtml() {
     renderPause();
     renderApplied(window.__applied || null);
     renderPendingBanner();
+    renderApprovals();
     render();
   }
 
@@ -984,6 +1140,61 @@ function chatHtml() {
     var m = Math.floor(s / 60);
     var rem = s % 60;
     return (m < 10 ? '0' + m : m) + ':' + (rem < 10 ? '0' + rem : rem);
+  }
+
+  var approvalsItems = [];
+  function renderApprovals() {
+    var wrap = document.getElementById('approvals');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    if (!approvalsItems.length) { wrap.className = ''; return; }
+    wrap.className = 'active';
+    var title = document.createElement('div');
+    title.className = 'approval-title';
+    title.textContent = t('approvalsTitle') + ' (' + approvalsItems.length + ')';
+    wrap.appendChild(title);
+    approvalsItems.forEach(function (item) {
+      var card = document.createElement('div');
+      card.className = 'approval-card';
+      var head = document.createElement('div');
+      head.className = 'who';
+      head.textContent = t('approvalFrom') + (item.at ? ' · ' + fmtTime(item.at) : '');
+      card.appendChild(head);
+      var prompt = document.createElement('div');
+      prompt.className = 'approval-prompt';
+      prompt.textContent = item.prompt || '';
+      card.appendChild(prompt);
+      if (item.workspaceRoot) {
+        var meta = document.createElement('div');
+        meta.className = 'approval-meta';
+        meta.textContent = tpl('approvalWorkspace', { p: item.workspaceRoot });
+        card.appendChild(meta);
+      }
+      var actions = document.createElement('div');
+      actions.className = 'approval-actions';
+      var okBtn = document.createElement('button');
+      okBtn.className = 'btn-approve';
+      okBtn.textContent = t('approve');
+      okBtn.addEventListener('click', function () {
+        vscodeApi.postMessage({ type: 'approveRequest', id: item.id });
+        approvalsItems = approvalsItems.filter(function (x) { return x.id !== item.id; });
+        state.history.push({ role: 'sys', text: t('approvedSys') });
+        save(); renderApprovals(); render();
+      });
+      var noBtn = document.createElement('button');
+      noBtn.className = 'btn-reject';
+      noBtn.textContent = t('reject');
+      noBtn.addEventListener('click', function () {
+        vscodeApi.postMessage({ type: 'rejectRequest', id: item.id });
+        approvalsItems = approvalsItems.filter(function (x) { return x.id !== item.id; });
+        state.history.push({ role: 'sys', text: t('rejectedSys') });
+        save(); renderApprovals(); render();
+      });
+      actions.appendChild(okBtn);
+      actions.appendChild(noBtn);
+      card.appendChild(actions);
+      wrap.appendChild(card);
+    });
   }
 
   function renderPendingBanner() {
@@ -1077,6 +1288,7 @@ function chatHtml() {
     document.getElementById('s-hookPoll').value = String(settings.hookPollSecs);
     document.getElementById('s-maxPerWake').value = String(settings.maxPerWake);
     document.getElementById('s-language').value = settings.answerLanguage;
+    document.getElementById('s-approval').checked = !!settings.requireApproval;
     document.getElementById('s-outboxPoll').value = String(settings.outboxPollSecs);
     document.getElementById('s-notify').checked = !!settings.notifyOnAnswer;
     document.getElementById('s-warn').value = String(settings.warnAfterMins);
@@ -1117,6 +1329,7 @@ function chatHtml() {
     settings.hookPollSecs = Number(document.getElementById('s-hookPoll').value);
     settings.maxPerWake = Number(document.getElementById('s-maxPerWake').value);
     settings.answerLanguage = document.getElementById('s-language').value;
+    settings.requireApproval = document.getElementById('s-approval').checked;
     settings.outboxPollSecs = Number(document.getElementById('s-outboxPoll').value);
     settings.notifyOnAnswer = document.getElementById('s-notify').checked;
     settings.warnAfterMins = Number(document.getElementById('s-warn').value);
@@ -1133,7 +1346,7 @@ function chatHtml() {
     applyI18n();
   }
 
-  ['s-uiLang','s-hookPoll','s-maxPerWake','s-language','s-outboxPoll','s-notify','s-warn','s-retention','s-att-file','s-att-selection','s-att-tree','s-att-diff'].forEach(function (id) {
+  ['s-uiLang','s-hookPoll','s-maxPerWake','s-language','s-approval','s-outboxPoll','s-notify','s-warn','s-retention','s-att-file','s-att-selection','s-att-tree','s-att-diff'].forEach(function (id) {
     document.getElementById(id).addEventListener('change', collectAndSave);
   });
 
@@ -1247,6 +1460,7 @@ function chatHtml() {
       save(); render();
     }
     if (m.type === 'heldByHost') { state.history.push({ role: 'sys', text: tpl('heldHost', { text: m.text || '' }) }); save(); render(); }
+    if (m.type === 'approvals') { approvalsItems = Array.isArray(m.items) ? m.items : []; renderApprovals(); }
     if (m.type === 'relayState') {
       relayPaused = !!m.paused;
       renderPause();
@@ -1265,6 +1479,7 @@ function chatHtml() {
   renderPause();
   vscodeApi.postMessage({ type: 'getRelayState' });
   vscodeApi.postMessage({ type: 'getSettings' });
+  vscodeApi.postMessage({ type: 'getApprovals' });
 </script>
 </body>
 </html>`;
