@@ -3,3 +3,4 @@
 **/*.vsix
 release-notes-*.md
 muse vscode extension.png
+.gitignore

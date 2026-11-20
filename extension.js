@@ -428,6 +428,30 @@ function register(context) {
   let activeWebviewView = null;
   let pendingOpenSettings = false;
 
+  // Keep the status bar and the open panel in sync when control.json is changed
+  // from outside (the slash commands, the Muse-side hook, another window).
+  // Watch the folder, not the file: atomic writes replace the file by rename.
+  {
+    let controlDebounce = null;
+    let controlWatcher = null;
+    try {
+      controlWatcher = fs.watch(relayDirs(), (eventType, filename) => {
+        if (filename && filename !== 'control.json') return;
+        if (controlDebounce) clearTimeout(controlDebounce);
+        controlDebounce = setTimeout(() => {
+          updateStatusBar();
+          if (activeWebviewView) {
+            try { activeWebviewView.webview.postMessage({ type: 'relayState', paused: readRelayPaused() }); } catch {}
+          }
+        }, 150);
+      });
+    } catch {}
+    sub({ dispose() {
+      if (controlDebounce) clearTimeout(controlDebounce);
+      if (controlWatcher) { try { controlWatcher.close(); } catch {} }
+    } });
+  }
+
   const chatProvider = {
     resolveWebviewView(webviewView) {
       activeWebviewView = webviewView;
@@ -807,10 +831,14 @@ function register(context) {
 }
 
 function chatHtml() {
+  // The webview loads no external resources, so lock it down: only the one
+  // inline script (matched by nonce) may run; no network, frames or objects.
+  const nonce = require('crypto').randomBytes(16).toString('base64');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   * { box-sizing: border-box; }
@@ -1009,7 +1037,7 @@ function chatHtml() {
     </div>
   </div>
 
-<script>
+<script nonce="${nonce}">
   var STR = {
     en: {
       settings: 'Settings', statusActive: 'Relay active', statusPaused: 'Relay paused',

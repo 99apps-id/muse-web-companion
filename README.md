@@ -5,7 +5,7 @@
 <h1 align="center">Muse Companion for Muse Web</h1>
 
 <p align="center">
-  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.3-blue" alt="Release"></a>
+  <a href="https://github.com/99apps-id/muse-web-companion"><img src="https://img.shields.io/badge/release-v0.1.4-blue" alt="Release"></a>
   <a href="https://code.visualstudio.com/"><img src="https://img.shields.io/badge/VS%20Code-%5E1.80.0-007ACC" alt="VS Code"></a>
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0">
   <a href="#"><img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="Dependencies"></a>
@@ -71,15 +71,15 @@ The shortest path:
 If an operator gives you (an AI coding agent such as **Claude Code, OpenAI Codex CLI, Google Antigravity, VS Code Copilot, Cursor, Windsurf, or Gemini CLI**) this repository URL and asks you to install it for them, follow this exact checklist:
 
 1. **Dependencies & Prerequisites (Zero npm packages required):**
-   - To install from the prebuilt release `.vsix`: **no Node.js or npm dependencies are needed** — just download `muse-web-companion-0.1.3.vsix` from GitHub Releases and install it via the IDE CLI.
+   - To install from the prebuilt release `.vsix`: **no Node.js or npm dependencies are needed** — just download `muse-web-companion-0.1.4.vsix` from GitHub Releases and install it via the IDE CLI.
    - Only if packaging from source: **Node.js `>= 18`** (`npx -y @vscode/vsce package`). Do **not** run `npm install` (`extension.js` has zero runtime dependencies).
    - **Tailscale is NOT required:** Context mode works with zero network/SSH setup. Relay & Tunnel modes only need *any* working SSH route from Muse's environment to this machine (e.g. reverse SSH tunnel `ssh -R` via a VPS/jump host, Cloudflare Tunnel, WireGuard, ZeroTier, Tailscale, or direct IP). Do not install Tailscale unless the operator specifically asks for it.
 2. **Download (or package) the `.vsix` and install into the operator's IDE(s):**
-   - Download the latest prebuilt `.vsix` from `https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.3.vsix` (or clone the repo and run `npx -y @vscode/vsce package`).
+   - Download the latest prebuilt `.vsix` from `https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.4.vsix` (or clone the repo and run `npx -y @vscode/vsce package`).
    - Install into whichever VS Code-compatible IDE(s) exist on the operator's machine:
-     - **VS Code:** `code --install-extension muse-web-companion-0.1.3.vsix --force`
-     - **Google Antigravity IDE:** `antigravity-ide --install-extension muse-web-companion-0.1.3.vsix --force` (on Windows: `"$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension muse-web-companion-0.1.3.vsix --force`)
-     - **Cursor / Windsurf:** `cursor --install-extension muse-web-companion-0.1.3.vsix --force` / `windsurf --install-extension muse-web-companion-0.1.3.vsix --force`
+     - **VS Code:** `code --install-extension muse-web-companion-0.1.4.vsix --force`
+     - **Google Antigravity IDE:** `antigravity-ide --install-extension muse-web-companion-0.1.4.vsix --force` (on Windows: `"$env:LOCALAPPDATA\Programs\Antigravity IDE\bin\antigravity-ide.cmd" --install-extension muse-web-companion-0.1.4.vsix --force`)
+     - **Cursor / Windsurf:** `cursor --install-extension muse-web-companion-0.1.4.vsix --force` / `windsurf --install-extension muse-web-companion-0.1.4.vsix --force`
 3. **Create the local relay directories (`~/muse-relay/{inbox,outbox,archive}`):**
    - **Windows (PowerShell):**
      ```powershell
@@ -162,13 +162,13 @@ Throughout this document, replace the placeholders with your own values:
 
 **Fastest way (prebuilt `.vsix` from GitHub Releases — no build needed):**
 
-1. Download [`muse-web-companion-0.1.3.vsix`](https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.3.vsix) from the latest GitHub Release.
+1. Download [`muse-web-companion-0.1.4.vsix`](https://github.com/99apps-id/muse-web-companion/releases/latest/download/muse-web-companion-0.1.4.vsix) from the latest GitHub Release.
 2. Install it into VS Code or Antigravity IDE:
 
    ```bash
-   code --install-extension muse-web-companion-0.1.3.vsix
+   code --install-extension muse-web-companion-0.1.4.vsix
    # or for Antigravity IDE:
-   antigravity-ide --install-extension muse-web-companion-0.1.3.vsix
+   antigravity-ide --install-extension muse-web-companion-0.1.4.vsix
    ```
 
    Or in the IDE: Extensions view → `...` menu → **Install from VSIX...** → pick the downloaded file.
@@ -192,8 +192,8 @@ Throughout this document, replace the placeholders with your own values:
 
    ```bash
    npx -y @vscode/vsce package
-   # produces muse-web-companion-0.1.3.vsix
-   code --install-extension muse-web-companion-0.1.3.vsix
+   # produces muse-web-companion-0.1.4.vsix
+   code --install-extension muse-web-companion-0.1.4.vsix
    ```
 
 5. Reload the VS Code window (`Developer: Reload Window` from the Command Palette). A **Muse** icon appears in the Activity Bar; click it to open the Chat panel. You can also open the panel from the keyboard: press `Ctrl+Shift+P`, type `Muse: Open the Muse Chat Panel`, and press Enter.
@@ -490,6 +490,11 @@ Approval flow (only when `requireApproval` is `true` in `control.json`): the MCP
 | VS Code does not show new MCP servers | Hosts load MCP config at startup | Restart the app or start a new session |
 
 ## Changelog
+
+### 0.1.4
+
+- **Pause state stays in sync with `control.json`** — the status bar and the open Chat panel now follow changes made outside the panel (the `/muse-pause` / `/muse-resume` slash commands of `muse-relay-mcp`, the Muse-side hook, another window) instead of re-reading the file only on open.
+- **Content-Security-Policy for the Chat panel** — `default-src 'none'`, with the single inline script allowed by a per-load nonce. No visual change; defence in depth.
 
 ### 0.1.3
 
