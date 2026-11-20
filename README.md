@@ -101,7 +101,7 @@ If an operator gives you (an AI coding agent such as **Claude Code, OpenAI Codex
   - **Context** — compose a message with the selected attachments, copy it to the clipboard, and open muse.ai (paste with `Ctrl+V`).
   - **Tunnel** — compose a message containing absolute paths on your machine, for a Muse that can reach your machine over an SSH tunnel and read the files itself.
 - **Context attachments**: active file, text selection, workspace tree, git status + diff, editor diagnostics.
-- **Pause / resume** the relay from the panel. Messages sent while paused are held in the panel and flushed automatically on resume.
+- **Pause / resume** the relay from the panel. Messages sent while paused are held in the panel and flushed automatically on resume. Pausing from outside works too — for example the `/muse-pause`, `/muse-resume` and `/muse-status` slash commands of [muse-relay-mcp](https://github.com/99apps-id/muse-relay-mcp#slash-commands) inside your coding agent — and since v0.1.4 the status bar and the open panel follow `control.json` automatically.
 - **Settings section in the panel** — relay polling interval, requests per worker wake, answer language, outbox polling, answer notifications, long-wait warnings, archive retention, default attachments. Panel settings apply instantly; Muse-side settings are applied automatically by Muse from a control file (no manual chat requests needed), and the panel shows the applied state.
 - **Watchdog** — a relay request that stays unanswered for 15 minutes is re-woken automatically (max 2 retries), so a crashed or timed-out worker never strands a question forever.
 - **Approval mode for agent requests** — optionally, questions from coding agents (via the MCP bridge) wait as a card in the panel for your **Approve / Reject** before they reach Muse; unapproved requests expire after 30 minutes. Your own panel messages are never gated.
@@ -332,7 +332,7 @@ Clone or copy the `muse-relay-mcp` project onto your machine (for example to `C:
 3. Type your message and press **Send to Muse** (or `Ctrl+Enter`).
    - Relay: the message is queued in the inbox; Muse's answer appears in the history when ready. A warning appears if an answer takes longer than your configured threshold.
    - Context/Tunnel: the composed message is copied to the clipboard and muse.ai opens — paste with `Ctrl+V` and send.
-4. **Pause relay** holds new relay messages in the panel and tells Muse-side polling to stand by; **Resume relay** flushes held messages automatically.
+4. **Pause relay** holds new relay messages in the panel and tells Muse-side polling to stand by; **Resume relay** flushes held messages automatically. Both buttons simply flip `paused` in `control.json`, so the same state can be changed from a coding agent with the `/muse-pause` / `/muse-resume` slash commands (see [muse-relay-mcp](https://github.com/99apps-id/muse-relay-mcp#slash-commands)); the panel reflects the change within a moment.
 5. **Settings** (top-right of the panel) opens the settings section; every change is saved automatically — there is no Save button.
 6. **Clear** empties the local panel history (relay files are not affected).
 
@@ -484,7 +484,8 @@ Approval flow (only when `requireApproval` is `true` in `control.json`): the MCP
 | Panel shows "Relay paused" | Relay paused from the panel or `control.json` | Resume from the panel |
 | Answer takes > 15 minutes | Worker timed out or queue is long | The watchdog re-wakes automatically (max 2×); check the archive for a late answer |
 | Settings change not applied | Worker queue busy | The panel shows requested vs applied values; application is automatic on a later poll cycle |
-| MCP tool returns `PAUSED` | Panel pause is on | Resume the relay in the panel |
+| MCP tool returns `PAUSED` | Relay paused (panel, `control.json`, or `/muse-pause` from a coding agent) | Resume the relay in the panel, or run `/muse-resume` in the agent |
+| Panel still shows "Relay active" after pausing from a coding agent | Extension older than v0.1.4 only re-read `control.json` when the panel opened | Update to v0.1.4 or later, then reload the window |
 | Agent reports `APPROVAL_PENDING` | Approval mode is on | Approve or reject the request card in the panel; unapproved requests expire after 30 minutes |
 | MCP questions queue forever | Hook disabled (bridge cannot see Muse-side state) | Enable the hook; queued questions will be answered then |
 | VS Code does not show new MCP servers | Hosts load MCP config at startup | Restart the app or start a new session |
